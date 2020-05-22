@@ -1,5 +1,6 @@
 // sample.cpp - Simple example of using AddIn.
 #include <cmath>
+#include <iostream>
 #include "../xll/xll.h"
 #include "../xll/shfb/entities.h"
 
@@ -26,9 +27,9 @@ AddIn xai_function(
 	// Don't forget prepend a question mark to the C++ name.
 	//                     |
 	//                     v
-	Function(XLL_LPOPER, L"?xll_function", L"XLL.FUNCTION")
+	Function(XLL_LPOPER, L"?xll_function", L"XLL.FUNCTIONs")
 	// First argument is a double called x with an argument description and default value of 2
-	.Arg(XLL_DOUBLE, L"x", L"is the first double argument.", L"2")
+	.Arg(XLL_DOUBLE "O", L"x", L"columns", L"[]")
 	// Paste function category.
 	.Category(L"Example")
 	// Insert Function description.
@@ -55,15 +56,21 @@ It has two paragraphs.
 )")
 );
 // Calling convention *must* be WINAPI (aka __stdcall) for Excel.
-LPOPER WINAPI xll_function(double x)
+LPOPER WINAPI xll_function(int* rows, int* columns, double* array)
 {
 	// Be sure to export your function.
+
 #pragma XLLEXPORT
 	static OPER result;
 
 	try {
-		ensure(x >= 0);
-		result = sqrt(x); // OPER's act like Excel cells.
+		double sub = 0;
+		int size = *rows * *columns;
+		for (int i = 0; i < size; i++) {
+			sub = sub + array[i];
+		}
+		result = sub;
+		// OPER's act like Excel cells.
 	}
 	catch (const std::exception & ex) {
 		XLL_ERROR(ex.what());
@@ -72,4 +79,5 @@ LPOPER WINAPI xll_function(double x)
 	}
 
 	return &result;
+
 }
