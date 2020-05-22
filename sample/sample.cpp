@@ -29,7 +29,7 @@ AddIn xai_function(
 	//                     v
 	Function(XLL_LPOPER, L"?xll_function", L"XLL.FUNCTIONs")
 	// First argument is a double called x with an argument description and default value of 2
-	.Arg(XLL_DOUBLE "O", L"x", L"columns", L"[]")
+	.Arg(XLL_FP, L"arr", L"row and columns", L"[]")
 	// Paste function category.
 	.Category(L"Example")
 	// Insert Function description.
@@ -56,7 +56,7 @@ It has two paragraphs.
 )")
 );
 // Calling convention *must* be WINAPI (aka __stdcall) for Excel.
-LPOPER WINAPI xll_function(int* rows, int* columns, double* array)
+LPOPER WINAPI xll_function(_FP12 * arr)
 {
 	// Be sure to export your function.
 
@@ -65,9 +65,9 @@ LPOPER WINAPI xll_function(int* rows, int* columns, double* array)
 
 	try {
 		double sub = 0;
-		int size = *rows * *columns;
+		int size = arr->rows * arr->columns;
 		for (int i = 0; i < size; i++) {
-			sub = sub + array[i];
+			sub = sub + arr->array[i];
 		}
 		result = sub;
 		// OPER's act like Excel cells.
