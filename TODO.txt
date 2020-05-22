@@ -1,0 +1,28 @@
+Add #defines for XLL_DOUBLE12/X
+What to do with _T?
+
+Move GetWorkspace and other utilities out of xll.
+
+Figure out how to do links in SHFB.
+
+Group by Category level in documentation.
+
+Alphabetical ordering of functino names. 
+
+Build the help files:
+%ProgramFiles(x86)%\MSBuild\14.0\bin\MSBuild.exe
+    /p:CopyrightText="Copyright \xa9 2006-2011"
+    /p:FeedbackEMailAdress="Eric@EWoodruff.us"
+    HelpFile.shfbproj
+
+Suppose the name TempAverage refers to a cell containing the formula AVERAGE(Temp1, Temp2, Temp3). The following formula assigns the value 99 to this cell, even if the average of the arguments is not 99, without changing the formula in TempAverage: 
+SET.VALUE(TempAverage, 99). TempAverage is restored to its correct value as soon as it is recalculated
+
+Documentation
+
+Alias Document = Args;
+One arg is the document name. Default to base? Use as namespace?
+Must have Documentation call. Allow multiple?
+
+Generate Category files correctly.
+SHFB grouping not working properly. Put topics one level lower?
