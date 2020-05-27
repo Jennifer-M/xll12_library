@@ -76,6 +76,7 @@
     <TargetExt>.xll</TargetExt>
     <OutDir>$(SolutionDir)$(ProjectName)\$(Platform)\$(Configuration)\</OutDir>
     <CustomBuildAfterTargets>Run</CustomBuildAfterTargets>
+    <IncludePath>C:\local\boost_1_73_0;C:\Users\Jennifer Ma\Documents\2019-2020\2020-winter\internship\QuantLib-1.18\QuantLib-1.18\test-suite;C:\Users\Jennifer Ma\Documents\2019-2020\2020-winter\internship\QuantLib-1.18\QuantLib-1.18;$(VC_IncludePath);$(WindowsSDK_IncludePath);</IncludePath>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
     <LinkIncremental>true</LinkIncremental>
@@ -92,6 +93,7 @@
     <TargetExt>.xll</TargetExt>
     <OutDir>$(SolutionDir)$(ProjectName)\$(Platform)\$(Configuration)\</OutDir>
     <CustomBuildAfterTargets>Run</CustomBuildAfterTargets>
+    <IncludePath>C:\local\boost_1_73_0;C:\Users\Jennifer Ma\Documents\2019-2020\2020-winter\internship\QuantLib-1.18\QuantLib-1.18\test-suite;C:\Users\Jennifer Ma\Documents\2019-2020\2020-winter\internship\QuantLib-1.18\QuantLib-1.18;$(VC_IncludePath);$(WindowsSDK_IncludePath);</IncludePath>
   </PropertyGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
     <ClCompile>
