@@ -1,12 +1,15 @@
 // sample.cpp - Simple example of using AddIn.
 #include <cmath>
+
 #include <iostream>
 #include "../xll/xll.h"
 #include "../xll/shfb/entities.h"
 
 //include quantlib libraries
-#include "piecewiseyieldcurve.hpp"
-#include "utilities.hpp"
+#include <test-suite/piecewiseyieldcurve.hpp>
+#include <test-suite/utilities.hpp>
+//#include <ql/quantlib.hpp>
+
 #include <ql/cashflows/iborcoupon.hpp>
 #include <ql/termstructures/globalbootstrap.hpp>
 #include <ql/termstructures/yield/piecewiseyieldcurve.hpp>
@@ -40,22 +43,18 @@
 #include <ql/pricingengines/bond/discountingbondengine.hpp>
 #include <ql/pricingengines/swap/discountingswapengine.hpp>
 #include <iomanip>
-#include <map>
-#include <string>
-#include <vector>
-#include <boost/assign/list_of.hpp>
+#include <boost/test/unit_test.hpp>
+//#include <boost/shared_ptr.hpp>
+//#include <boost/assign/list_of.hpp>
 
 
-using namespace xll;
+
 
 //quantlib using
 using namespace QuantLib;
 using namespace boost::unit_test_framework;
-using boost::assign::list_of;
-using boost::assign::map_list_of;
-using std::map;
-using std::vector;
-using std::string;
+
+using namespace xll;
 
 AddIn xai_sample(
 	Document(L"sample") // top level documentation
@@ -74,13 +73,19 @@ This object will generate documentation for the Example category.
 
 // Information Excel needs to register add-in.
 AddIn xai_function(
-	// Function returning a pointer to an OPER with C++ name xll_function and Excel name XLL.FUNCTION.
-	// Don't forget prepend a question mark to the C++ name.
-	//                     |
-	//                     v
-	Function(XLL_DOUBLE, L"?testLinearZeroConsistency", L"XLL.FUNCTIONs")
-	// First argument is a double called x with an argument description and default value of 2
-	.uncalced()
+    // Function returning a pointer to an OPER with C++ name xll_function and Excel name XLL.FUNCTION.
+    // Don't forget prepend a question mark to the C++ name.
+    //                     |
+    //                     v
+    Function(XLL_LPOPER, L"?testLinearZeroConsistency", L"XLL.FUNCTIONs")
+    // First argument is a double called x with an argument description and default value of 2
+    .Arg(XLL_LPOPER, L"depositData1", L"deposit data", L"")
+    .Arg(XLL_LPOPER,L"fraData1",L"fra data",L"")
+    .Arg(XLL_LPOPER, L"immFutData1", L"immFut data", L"")
+    .Arg(XLL_LPOPER, L"asxFutData1", L"asxFut data", L"")
+    .Arg(XLL_LPOPER, L"swapData1", L"swap data", L"")
+    .Arg(XLL_LPOPER, L"bondData1", L"bond data", L"")
+    .Arg(XLL_LPOPER, L"bmaData1", L"bma data", L"")
 	// Paste function category.
 	.Category(L"Example")
 	// Insert Function description.
@@ -127,73 +132,7 @@ namespace piecewise_yield_curve_test {
         Real price;
     };
 
-    Datum depositData[] = {
-        { 1, Weeks,  4.559 },
-        { 1, Months, 4.581 },
-        { 2, Months, 4.573 },
-        { 3, Months, 4.557 },
-        { 6, Months, 4.496 },
-        { 9, Months, 4.490 }
-    };
 
-    Datum fraData[] = {
-        { 1, Months, 4.581 },
-        { 2, Months, 4.573 },
-        { 3, Months, 4.557 },
-        { 6, Months, 4.496 },
-        { 9, Months, 4.490 }
-    };
-
-    Datum immFutData[] = {
-        { 1, Months, 4.581 },
-        { 2, Months, 4.573 },
-        { 3, Months, 4.557 }
-    };
-
-    Datum asxFutData[] = {
-        { 1, Months, 4.581 },
-        { 2, Months, 4.573 },
-        { 3, Months, 4.557 }
-    };
-
-    Datum swapData[] = {
-        {  1, Years, 4.54 },
-        {  2, Years, 4.63 },
-        {  3, Years, 4.75 },
-        {  4, Years, 4.86 },
-        {  5, Years, 4.99 },
-        {  6, Years, 5.11 },
-        {  7, Years, 5.23 },
-        {  8, Years, 5.33 },
-        {  9, Years, 5.41 },
-        { 10, Years, 5.47 },
-        { 12, Years, 5.60 },
-        { 15, Years, 5.75 },
-        { 20, Years, 5.89 },
-        { 25, Years, 5.95 },
-        { 30, Years, 5.96 }
-    };
-
-    BondDatum bondData[] = {
-        {  6, Months, 5, Semiannual, 4.75, 101.320 },
-        {  1, Years,  3, Semiannual, 2.75, 100.590 },
-        {  2, Years,  5, Semiannual, 5.00, 105.650 },
-        {  5, Years, 11, Semiannual, 5.50, 113.610 },
-        { 10, Years, 11, Semiannual, 3.75, 104.070 }
-    };
-
-    Datum bmaData[] = {
-        {  1, Years, 67.56 },
-        {  2, Years, 68.00 },
-        {  3, Years, 68.25 },
-        {  4, Years, 68.50 },
-        {  5, Years, 68.81 },
-        {  7, Years, 69.50 },
-        { 10, Years, 70.44 },
-        { 15, Years, 71.69 },
-        { 20, Years, 72.69 },
-        { 30, Years, 73.81 }
-    };
 
     struct CommonVars {
         // global variables
@@ -223,10 +162,12 @@ namespace piecewise_yield_curve_test {
 
         // cleanup
         SavedSettings backup;
-        IndexHistoryCleaner cleaner;
+        QuantLib::IndexHistoryCleaner cleaner;
 
         // setup
-        CommonVars() {
+        CommonVars(std::vector<Datum> &depositData, std::vector<Datum> &fraData, std::vector<Datum> &immFutData, 
+            std::vector<Datum>& asxFutData, std::vector<Datum>& swapData, std::vector<BondDatum>& bondData, 
+            std::vector<Datum>&bmaData) {
             // data
             calendar = TARGET();
             settlementDays = 2;
@@ -687,17 +628,156 @@ namespace piecewise_yield_curve_test {
 
 }
 
-void PiecewiseYieldCurveTest::testLinearZeroConsistency() {
+std::string wtoa(const std::wstring& Text) {
+    std::string s(WideCharToMultiByte(CP_UTF8, 0, Text.c_str(), Text.size(), NULL, NULL, NULL, NULL), '\0');
+    s.resize(WideCharToMultiByte(CP_UTF8, 0, Text.c_str(), Text.size(), &s[0], s.size(), NULL, NULL));
+    return s;
+}
 
-    BOOST_TEST_MESSAGE(
-        "Testing consistency of piecewise-linear zero-yield curve...");
+TimeUnit convertTime(std::string x) {
+    if (x == "Months") {
+        return Months;
+    }
+    else if (x == "Years") {
+        return Years;
+    }
+    else if (x == "Days") {
+        return Days;
+    }
+    else if (x == "Weeks") {
+        return Weeks;
+    }
+    else if (x == "Hours") {
+        return Hours;
+    }
+    else if (x == "Minutes") {
+        return Minutes;
+    }
+    else if (x == "Seconds") {
+        return Seconds;
+    }
+    else if (x == "Milliseconds"){
+        return Milliseconds;
+    }
+    else {
+        return Microseconds;
+    }
+    
+}
+
+LPOPER WINAPI testLinearZeroConsistency(XLOPER12 * depositData1,
+                                XLOPER12 * fraData1,
+                                XLOPER12 * immFutData1,
+                                XLOPER12 *asxFutData1,
+                                XLOPER12 *swapData1,
+                                XLOPER12 *bondData1,
+                                XLOPER12 * bmaData1) {
+#pragma XLLEXPORT
+    static OPER result;
+    //BOOST_TEST_MESSAGE(
+    //    "Testing consistency of piecewise-linear zero-yield curve...");
 
     using namespace piecewise_yield_curve_test;
+   // int sizedepositData = depositData1
+    //Datum  depositData;
+    //for (int i)
+    
+    Real tolerance = 1.0e-9;
+    int sizeDepositData = (int)depositData1->val.array.rows;
+        std::vector<Datum> depositData(sizeDepositData);
+        for (int i = 0; i < sizeDepositData; i++) {
+            Integer a = depositData1->val.array.lparray[i].val.array.lparray[0].val.w;
+            std::string bb = wtoa(depositData1->val.array.lparray[i].val.array.lparray[1].val.str);
+            TimeUnit b = convertTime(bb);
+            Rate c = depositData1->val.array.lparray[i].val.array.lparray[2].val.w;
+            Datum sub = { a, b, c };
+            depositData.push_back(sub);
+        }
+    int sizefraData = (int)fraData1->val.array.rows;
+        std::vector<Datum> fraData(sizefraData);
+        for (int i = 0; i < sizefraData; i++) {
+            Integer a = fraData1->val.array.lparray[i].val.array.lparray[0].val.w;
+            std::string bb = wtoa(fraData1->val.array.lparray[i].val.array.lparray[1].val.str);
+            TimeUnit b = convertTime(bb);
+            Rate c = fraData1->val.array.lparray[i].val.array.lparray[2].val.w;
+            Datum sub = { a, b, c };
+            fraData.push_back(sub);
+        }
+    int sizeimmFutData = (int)immFutData1->val.array.rows;
+        std::vector<Datum> immFutData(sizeimmFutData);
+        for (int i = 0; i < sizeimmFutData; i++) {
+            Integer a = immFutData1->val.array.lparray[i].val.array.lparray[0].val.w;
+            std::string bb = wtoa(immFutData1->val.array.lparray[i].val.array.lparray[1].val.str);
+            TimeUnit b = convertTime(bb);
+            Rate c = immFutData1->val.array.lparray[i].val.array.lparray[2].val.w;
+            Datum sub = { a, b, c };
+            immFutData.push_back(sub);
+        }
+    int sizeasxFutData = (int)asxFutData1->val.array.rows;
+        std::vector<Datum> asxFutData(sizeasxFutData);
+        for (int i = 0; i < sizeasxFutData; i++) {
+            Integer a = asxFutData1->val.array.lparray[i].val.array.lparray[0].val.w;
+            std::string bb = wtoa(asxFutData1->val.array.lparray[i].val.array.lparray[1].val.str);
+            TimeUnit b = convertTime(bb);
+            Rate c = asxFutData1->val.array.lparray[i].val.array.lparray[2].val.w;
+            Datum sub = { a, b, c };
+            asxFutData.push_back(sub);
+        }
+     int sizeswapData = (int)swapData1->val.array.rows;
+        std::vector<Datum> swapData(sizeswapData);
+        for (int i = 0; i < sizeswapData; i++) {
+            Integer a = swapData1->val.array.lparray[i].val.array.lparray[0].val.w;
+            std::string bb = wtoa(swapData1->val.array.lparray[i].val.array.lparray[1].val.str);
+            TimeUnit b = convertTime(bb);
+            Rate c = swapData1->val.array.lparray[i].val.array.lparray[2].val.w;
+            Datum sub = { a, b, c };
+            swapData.push_back(sub);
+        }
+     int sizebondData = (int)bondData1->val.array.rows;
+        std::vector<BondDatum> bondData(sizebondData);
+        for (int i = 0; i < sizebondData; i++) {
+            Integer a = bondData1->val.array.lparray[i].val.array.lparray[0].val.w;
+            std::string bb = wtoa(bondData1->val.array.lparray[i].val.array.lparray[1].val.str);
+            TimeUnit b = convertTime(bb);
+            Rate c = bondData1->val.array.lparray[i].val.array.lparray[2].val.w;
+            BondDatum sub = { a, b, c };
+            bondData.push_back(sub);
+        }
 
-    CommonVars vars;
+     int sizebmaData = (int)bmaData1->val.array.rows;
+        std::vector<Datum> bmaData(sizebmaData);
+        for (int i = 0; i < sizebmaData; i++) {
+            Integer a = bmaData1->val.array.lparray[i].val.array.lparray[0].val.w;
+            std::string bb = wtoa(bmaData1->val.array.lparray[i].val.array.lparray[1].val.str);
+            TimeUnit b = convertTime(bb);
+            Rate c = bmaData1->val.array.lparray[i].val.array.lparray[2].val.w;
+            Datum sub = { a, b, c };
+            bmaData.push_back(sub);
+        }
+    CommonVars vars(depositData,fraData,immFutData,asxFutData,swapData,bondData,bmaData);
+    
+ //   testCurveConsistency<ZeroYield, Linear, IterativeBootstrap>(vars);
+    RelinkableHandle<YieldTermStructure> curveHandle;
+    curveHandle.linkTo(vars.termStructure);
 
-    testCurveConsistency<ZeroYield, Linear, IterativeBootstrap>(vars);
+    for (Size i = 0; i < vars.deposits; i++) {
+        Euribor index(depositData[i].n * depositData[i].units, curveHandle);
+        Rate expectedRate = depositData[i].rate / 100,
+            estimatedRate = index.fixing(vars.today);
+        if (std::fabs(expectedRate - estimatedRate) > tolerance) {
+            BOOST_ERROR(
+                depositData[i].n << " "
+                << (depositData[i].units == Weeks ? "week(s)" : "month(s)")
+                << " deposit:"
+                << std::setprecision(8)
+                << "\n    estimated rate: " << io::rate(estimatedRate)
+                << "\n    expected rate:  " << io::rate(expectedRate));
+        }
+    }
+
+
     testBMACurveConsistency<ZeroYield, Linear, IterativeBootstrap>(vars);
+    return &result;
 }
 
 // Calling convention *must* be WINAPI (aka __stdcall) for Excel.
