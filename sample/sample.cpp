@@ -1,11 +1,22 @@
+//#define BOOST_TEST_MODULE sample
+//#define BOOST_TEST_DYN_LINK
+
+
+#include <ql/quantlib.hpp>
 // sample.cpp - Simple example of using AddIn.
 #include <cmath>
 #include "../xll/xll.h"
 #include "../xll/shfb/entities.h"
 
 
-#include <ql/quantlib.hpp>
+//#include <boost/test/unit_test.hpp>
+//#include <ql/time/date.hpp> 
+//#include <ql/time/calendar.hpp>
+//#include <boost/move/detail/meta_utils.hpp>
+
 #include <iostream>
+
+
 
 using namespace xll;
 
@@ -74,8 +85,8 @@ It has two paragraphs.
 	}
 
 	return &result;
-}*/
-/**
+}
+
 std::string wtoa(const std::wstring& Text) {
     std::string s(WideCharToMultiByte(CP_UTF8, 0, Text.c_str(), Text.size(), NULL, NULL, NULL, NULL), '\0');
     s.resize(WideCharToMultiByte(CP_UTF8, 0, Text.c_str(), Text.size(), &s[0], s.size(), NULL, NULL));
@@ -233,7 +244,7 @@ LPOPER WINAPI testLinearZeroConsistency(XLOPER12* depositData1,
 
     //    testBMACurveConsistency<ZeroYield, Linear, IterativeBootstrap>(vars);
     return &result;
-} **/
+} */
 
 LPOPER WINAPI xll_function(double x)
 {
@@ -260,6 +271,6 @@ LPOPER WINAPI xll_function(double x)
 
     double tmp;
     std::cin >> tmp;
-
+    
     return &result;
 }
