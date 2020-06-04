@@ -43,7 +43,7 @@ AddIn xai_function(
 	// Don't forget prepend a question mark to the C++ name.
 	//                     |
 	//                     v
-	Function(XLL_LPOPER, L"?xll_function", L"XLL.FUNCTION")
+	Function(XLL_LPOPER, L"?depositDataTest", L"XLL.depositDataTest")
 	// First argument is a double called x with an argument description and default value of 2
 	.Arg(XLL_LPOPER, L"depositData1", L"is the first double argument.", L"2")
     .Arg(XLL_LPOPER, L"fraData1", L"is the first double argument.", L"2")
@@ -174,13 +174,13 @@ namespace piecewise_yield_curve_test {
             bmaConvention = Following;
             bmaDayCounter = ActualActual();
 
-            deposits = LENGTH(depositData);
-            fras = LENGTH(fraData);
-            immFuts = LENGTH(immFutData);
-            asxFuts = LENGTH(asxFutData);
-            swaps = LENGTH(swapData);
-            bonds = LENGTH(bondData);
-            bmas = LENGTH(bmaData);
+            deposits = (int)depositData.size();
+            fras = (int)fraData.size();
+            immFuts = (int)immFutData.size();
+            asxFuts = (int)asxFutData.size();
+            swaps = (int)swapData.size();
+            bonds = (int)bondData.size();
+            bmas = (int)bmaData.size();
 
             // market elements
             rates =
@@ -404,7 +404,7 @@ Frequency convertFreq(std::string x) {
     }
 
 };
-LPOPER WINAPI xll_function(XLOPER12* depositData1,
+LPOPER WINAPI depositDataTest(XLOPER12* depositData1,
     XLOPER12* fraData1,
     XLOPER12* immFutData1,
     XLOPER12* asxFutData1,
@@ -533,189 +533,1302 @@ LPOPER WINAPI xll_function(XLOPER12* depositData1,
             Actual360(),
             interpolator)));
 
-    sizeDepositData = LENGTH(depositData);
+    sizeDepositData = (int)depositData.size();
     std::vector<Rate> expectedRate(sizeDepositData);
     std::vector<Rate> estimatedRate(sizeDepositData);
-    std::vector<Rate> subExpectedRate;
     for (Size i = 0; i < sizeDepositData; i++) {
         Euribor index(depositData[i].n * depositData[i].units, curveHandle);
         expectedRate[i] = depositData[i].rate / 100;
             estimatedRate[i] = index.fixing(vars.today);
         if (std::fabs(expectedRate[i] - estimatedRate[i]) > tolerance) {
-            std::cout <<
+            BOOST_ERROR(
                 depositData[i].n << " "
                 << (depositData[i].units == Weeks ? "week(s)" : "month(s)")
                 << " deposit:"
                 //<< std::setprecision(8)
                 << "\n    estimated rate: " << io::rate(estimatedRate[i])
-                << "\n    expected rate:  " << io::rate(expectedRate[i]);
+                << "\n    expected rate:  " << io::rate(expectedRate[i]));
         }
     }
-    Rate sub[50];
+    count = 0;
+    OPER sub(sizeDepositData,3);
     for (int j = 0; j < sizeDepositData; j++) {
-        sub[j] = expectedRate[j];
+        sub[count] = expectedRate[j];
+        count++;
+        sub[count] = estimatedRate[j];
+        count++;
+        sub[count] = std::fabs(expectedRate[j] - estimatedRate[j]) < tolerance ? true : false;
+        count++;
     }
     
     result = sub;
     return &result;
 }
 
-/*
-template <class T, class I, template<class C> class B>
-LPOPER WINAPI xll_function(XLOPER12* depositData1,
+AddIn xai_function1(
+    // Function returning a pointer to an OPER with C++ name xll_function and Excel name XLL.FUNCTION.
+    // Don't forget prepend a question mark to the C++ name.
+    Function(XLL_LPOPER, L"?swapDataTest", L"XLL.swapDataTest")
+    // First argument is a double called x with an argument description and default value of 2
+    .Arg(XLL_LPOPER, L"depositData1", L"is the first double argument.", L"2")
+    .Arg(XLL_LPOPER, L"fraData1", L"is the first double argument.", L"2")
+    .Arg(XLL_LPOPER, L"immFutData1", L"is the first double argument.", L"2")
+    .Arg(XLL_LPOPER, L"asxFutData1", L"is the first double argument.", L"2")
+    .Arg(XLL_LPOPER, L"swapData1", L"is the first double argument.", L"2")
+    .Arg(XLL_LPOPER, L"bondData1", L"is the first double argument.", L"2")
+    .Arg(XLL_LPOPER, L"bmaData1", L"is the first double argument.", L"2")
+    // Paste function category.
+    .Category(L"Example")
+    // Insert Function description.
+    .FunctionHelp(L"Help on XLL.FUNCTION goes here.")
+    // Create entry for this function in Sandcastle Help File Builder project file.
+    .Alias(L"XLL.FUNCTION.ALIAS") // alternate name
+    .Documentation(
+        PARA_(
+            L"Free-form documentation for " C_(L"XLL.FUNCTION") L" goes here."
+        )
+        PARA_(L"But you can include MAML directives.")
+        PARA_(L"This is " B_(L"bold") " and so is " B_("this"))
+        PARA_(L"Math: " MATH_(int_ SUB_(minus_ infin_) SUP_(infin_) L"e" SUP_(L"x" sup2_ L"/2") L" dx"))
+    )
+);
+LPOPER WINAPI swapDataTest(XLOPER12* depositData1,
     XLOPER12* fraData1,
     XLOPER12* immFutData1,
     XLOPER12* asxFutData1,
     XLOPER12* swapData1,
     XLOPER12* bondData1,
     XLOPER12* bmaData1) {
-
 #pragma XLLEXPORT
-
     static OPER result;
 
-    //BOOST_TEST_MESSAGE(
-    //    "Testing consistency of piecewise-linear zero-yield curve...");
-
     using namespace piecewise_yield_curve_test;
-    // int sizedepositData = depositData1
-     //Datum  depositData;
-     //for (int i)
-
     Real tolerance = 1.0e-9;
     int sizeDepositData = (int)depositData1->val.array.rows;
-    std::vector<Datum> depositData(sizeDepositData);
+    int count = 0;
+    std::vector<Datum> depositData;
     for (int i = 0; i < sizeDepositData; i++) {
-        Integer a = depositData1->val.array.lparray[i].val.array.lparray[0].val.w;
-        std::string bb = wtoa(depositData1->val.array.lparray[i].val.array.lparray[1].val.str);
+        Integer a = (int)depositData1->val.array.lparray[count].val.num;
+        count++;
+        std::string bb = wtoa(depositData1->val.array.lparray[count].val.str);
         TimeUnit b = convertTime(bb);
-        Rate c = depositData1->val.array.lparray[i].val.array.lparray[2].val.w;
+        count++;
+        Rate c = depositData1->val.array.lparray[count].val.num;
+        count++;
         Datum sub = { a, b, c };
         depositData.push_back(sub);
     }
+    count = 0;
     int sizefraData = (int)fraData1->val.array.rows;
-    std::vector<Datum> fraData(sizefraData);
+    std::vector<Datum> fraData;
     for (int i = 0; i < sizefraData; i++) {
-        Integer a = fraData1->val.array.lparray[i].val.array.lparray[0].val.w;
-        std::string bb = wtoa(fraData1->val.array.lparray[i].val.array.lparray[1].val.str);
+        Integer a = (int)fraData1->val.array.lparray[count].val.num;
+        count++;
+        std::string bb = wtoa(fraData1->val.array.lparray[count].val.str);
         TimeUnit b = convertTime(bb);
-        Rate c = fraData1->val.array.lparray[i].val.array.lparray[2].val.w;
+        count++;
+        Rate c = fraData1->val.array.lparray[count].val.num;
+        count++;
         Datum sub = { a, b, c };
         fraData.push_back(sub);
     }
+    count = 0;
     int sizeimmFutData = (int)immFutData1->val.array.rows;
-    std::vector<Datum> immFutData(sizeimmFutData);
+    std::vector<Datum> immFutData;
     for (int i = 0; i < sizeimmFutData; i++) {
-        Integer a = immFutData1->val.array.lparray[i].val.array.lparray[0].val.w;
-        std::string bb = wtoa(immFutData1->val.array.lparray[i].val.array.lparray[1].val.str);
+        Integer a = (int)immFutData1->val.array.lparray[count].val.num;
+        count++;
+        std::string bb = wtoa(immFutData1->val.array.lparray[count].val.str);
         TimeUnit b = convertTime(bb);
-        Rate c = immFutData1->val.array.lparray[i].val.array.lparray[2].val.w;
+        count++;
+        Rate c = immFutData1->val.array.lparray[count].val.num;
+        count++;
         Datum sub = { a, b, c };
         immFutData.push_back(sub);
     }
+    count = 0;
     int sizeasxFutData = (int)asxFutData1->val.array.rows;
-    std::vector<Datum> asxFutData(sizeasxFutData);
+    std::vector<Datum> asxFutData;
     for (int i = 0; i < sizeasxFutData; i++) {
-        Integer a = asxFutData1->val.array.lparray[i].val.array.lparray[0].val.w;
-        std::string bb = wtoa(asxFutData1->val.array.lparray[i].val.array.lparray[1].val.str);
+        Integer a = (int)asxFutData1->val.array.lparray[count].val.num;
+        count++;
+        std::string bb = wtoa(asxFutData1->val.array.lparray[count].val.str);
         TimeUnit b = convertTime(bb);
-        Rate c = asxFutData1->val.array.lparray[i].val.array.lparray[2].val.w;
+        count++;
+        Rate c = asxFutData1->val.array.lparray[count].val.num;
+        count++;
         Datum sub = { a, b, c };
         asxFutData.push_back(sub);
     }
+    count = 0;
     int sizeswapData = (int)swapData1->val.array.rows;
-    std::vector<Datum> swapData(sizeswapData);
+    std::vector<Datum> swapData;
     for (int i = 0; i < sizeswapData; i++) {
-        Integer a = swapData1->val.array.lparray[i].val.array.lparray[0].val.w;
-        std::string bb = wtoa(swapData1->val.array.lparray[i].val.array.lparray[1].val.str);
+        Integer a = (int)swapData1->val.array.lparray[count].val.num;
+        count++;
+        std::string bb = wtoa(swapData1->val.array.lparray[count].val.str);
         TimeUnit b = convertTime(bb);
-        Rate c = swapData1->val.array.lparray[i].val.array.lparray[2].val.w;
+        count++;
+        Rate c = swapData1->val.array.lparray[count].val.num;
+        count++;
         Datum sub = { a, b, c };
         swapData.push_back(sub);
     }
+    count = 0;
     int sizebondData = (int)bondData1->val.array.rows;
-    std::vector<BondDatum> bondData(sizebondData);
+    std::vector<BondDatum> bondData;
     for (int i = 0; i < sizebondData; i++) {
-        Integer a = bondData1->val.array.lparray[i].val.array.lparray[0].val.w;
-        std::string bb = wtoa(bondData1->val.array.lparray[i].val.array.lparray[1].val.str);
+        Integer a = (int)bondData1->val.array.lparray[count].val.num;
+        count++;
+        std::string bb = wtoa(bondData1->val.array.lparray[count].val.str);
         TimeUnit b = convertTime(bb);
-        Rate c = bondData1->val.array.lparray[i].val.array.lparray[2].val.w;
-        BondDatum sub = { a, b, c };
+        count++;
+        Integer c = (int)bondData1->val.array.lparray[count].val.num;
+        count++;
+        std::string dd = wtoa(bondData1->val.array.lparray[count].val.str);
+        Frequency d = convertFreq(dd);
+        count++;
+        Rate e = bondData1->val.array.lparray[count].val.num;
+        count++;
+        Real f = bondData1->val.array.lparray[count].val.num;
+        count++;
+        BondDatum sub = { a, b, c, d, e, f };
         bondData.push_back(sub);
     }
 
+    count = 0;
     int sizebmaData = (int)bmaData1->val.array.rows;
     std::vector<Datum> bmaData(sizebmaData);
     for (int i = 0; i < sizebmaData; i++) {
-        Integer a = bmaData1->val.array.lparray[i].val.array.lparray[0].val.w;
-        std::string bb = wtoa(bmaData1->val.array.lparray[i].val.array.lparray[1].val.str);
+        Integer a = (int)bmaData1->val.array.lparray[count].val.num;
+        count++;
+        std::string bb = wtoa(bmaData1->val.array.lparray[count].val.str);
         TimeUnit b = convertTime(bb);
-        Rate c = bmaData1->val.array.lparray[i].val.array.lparray[2].val.w;
+        count++;
+        Rate c = bmaData1->val.array.lparray[count].val.num;
+        count++;
         Datum sub = { a, b, c };
         bmaData.push_back(sub);
     }
     CommonVars vars(depositData, fraData, immFutData, asxFutData, swapData, bondData, bmaData);
 
-    //   testCurveConsistency<ZeroYield, Linear, IterativeBootstrap>(vars);
+    QuantLib::Linear interpolator = Linear();
     RelinkableHandle<YieldTermStructure> curveHandle;
 
     curveHandle.linkTo(ext::shared_ptr<YieldTermStructure>(new
-        PiecewiseYieldCurve<T, I, B>(vars.settlement, vars.instruments,
+        PiecewiseYieldCurve<ZeroYield, Linear, IterativeBootstrap>(vars.settlement, vars.instruments,
             Actual360(),
             interpolator)));
 
-    sizeDepositData = LENGTH(depositData);
-    double expectedRate[sizeDepositData];
-    vector<Rate> subExpectedRate;
-    for (Size i = 0; i < sizeDepositData; i++) {
-        Euribor index(depositData[i].n * depositData[i].units, curveHandle);
-        Rate expectedRate[i] = depositData[i].rate / 100,
-            estimatedRate = index.fixing(calendar.adjust(Date::todaysDate()););
-        if (std::fabs(expectedRate[i] - estimatedRate) > tolerance) {
-            std::cout <<
-                depositData[i].n << " "
-                << (depositData[i].units == Weeks ? "week(s)" : "month(s)")
-                << " deposit:"
-                //<< std::setprecision(8)
-                << "\n    estimated rate: " << io::rate(estimatedRate)
-                << "\n    expected rate:  " << io::rate(expectedRate[i]);
+    std::vector<Rate> expectedRate(vars.swaps);
+    std::vector<Rate> estimatedRate(vars.swaps);
+
+    ext::shared_ptr<IborIndex> euribor6m(new Euribor6M(curveHandle));
+    for (Size i = 0; i < vars.swaps; i++) {
+        Period tenor = swapData[i].n * swapData[i].units;
+
+        VanillaSwap swap = MakeVanillaSwap(tenor, euribor6m, 0.0)
+            .withEffectiveDate(vars.settlement)
+            .withFixedLegDayCount(vars.fixedLegDayCounter)
+            .withFixedLegTenor(Period(vars.fixedLegFrequency))
+            .withFixedLegConvention(vars.fixedLegConvention)
+            .withFixedLegTerminationDateConvention(vars.fixedLegConvention);
+
+        expectedRate[i] = swapData[i].rate / 100;
+            estimatedRate[i] = swap.fairRate();
+        Spread error = std::fabs(expectedRate[i] - estimatedRate[i]);
+        if (error > tolerance) {
+            BOOST_ERROR(
+                swapData[i].n << " year(s) swap:\n"
+                << std::setprecision(8)
+                << "\n estimated rate: " << io::rate(estimatedRate[i])
+                << "\n expected rate:  " << io::rate(expectedRate[i])
+                << "\n error:          " << io::rate(error)
+                << "\n tolerance:      " << io::rate(tolerance));
         }
     }
-    result = expectedRate;
 
-    //    testBMACurveConsistency<ZeroYield, Linear, IterativeBootstrap>(vars);
+    count = 0;
+    OPER sub(vars.swaps, 3);
+    for (int j = 0; j < vars.swaps; j++) {
+        sub[count] = expectedRate[j];
+        count++;
+        sub[count] = estimatedRate[j];
+        count++;
+        sub[count] = std::fabs(expectedRate[j] - estimatedRate[j]) < tolerance ? true : false;
+        count++;
+    }
+
+    result = sub;
     return &result;
-} */
+};
 
+AddIn xai_function2(
+    // Function returning a pointer to an OPER with C++ name xll_function and Excel name XLL.FUNCTION.
+    // Don't forget prepend a question mark to the C++ name.
+    Function(XLL_LPOPER, L"?bondDataTest", L"XLL.bondDataTest")
+    // First argument is a double called x with an argument description and default value of 2
+    .Arg(XLL_LPOPER, L"depositData1", L"is the first double argument.", L"2")
+    .Arg(XLL_LPOPER, L"fraData1", L"is the first double argument.", L"2")
+    .Arg(XLL_LPOPER, L"immFutData1", L"is the first double argument.", L"2")
+    .Arg(XLL_LPOPER, L"asxFutData1", L"is the first double argument.", L"2")
+    .Arg(XLL_LPOPER, L"swapData1", L"is the first double argument.", L"2")
+    .Arg(XLL_LPOPER, L"bondData1", L"is the first double argument.", L"2")
+    .Arg(XLL_LPOPER, L"bmaData1", L"is the first double argument.", L"2")
+    // Paste function category.
+    .Category(L"Example")
+    // Insert Function description.
+    .FunctionHelp(L"Help on XLL.FUNCTION goes here.")
+    // Create entry for this function in Sandcastle Help File Builder project file.
+    .Alias(L"XLL.FUNCTION.ALIAS") // alternate name
+    .Documentation(
+        PARA_(
+            L"Free-form documentation for " C_(L"XLL.FUNCTION") L" goes here."
+        )
+        PARA_(L"But you can include MAML directives.")
+        PARA_(L"This is " B_(L"bold") " and so is " B_("this"))
+        PARA_(L"Math: " MATH_(int_ SUB_(minus_ infin_) SUP_(infin_) L"e" SUP_(L"x" sup2_ L"/2") L" dx"))
+    )
+);
 
-
-/*
-LPOPER WINAPI xll_function(double x)
-{
+LPOPER WINAPI bondDataTest(XLOPER12* depositData1,
+    XLOPER12* fraData1,
+    XLOPER12* immFutData1,
+    XLOPER12* asxFutData1,
+    XLOPER12* swapData1,
+    XLOPER12* bondData1,
+    XLOPER12* bmaData1) {
 #pragma XLLEXPORT
     static OPER result;
 
-    QuantLib::Calendar myCal = QuantLib::UnitedKingdom();
-    QuantLib::Date newYearsEve(31, QuantLib::Dec, 2008);
+    using namespace piecewise_yield_curve_test;
+    Real tolerance = 1.0e-9;
+    int sizeDepositData = (int)depositData1->val.array.rows;
+    int count = 0;
+    std::vector<Datum> depositData;
+    for (int i = 0; i < sizeDepositData; i++) {
+        Integer a = (int)depositData1->val.array.lparray[count].val.num;
+        count++;
+        std::string bb = wtoa(depositData1->val.array.lparray[count].val.str);
+        TimeUnit b = convertTime(bb);
+        count++;
+        Rate c = depositData1->val.array.lparray[count].val.num;
+        count++;
+        Datum sub = { a, b, c };
+        depositData.push_back(sub);
+    }
+    count = 0;
+    int sizefraData = (int)fraData1->val.array.rows;
+    std::vector<Datum> fraData;
+    for (int i = 0; i < sizefraData; i++) {
+        Integer a = (int)fraData1->val.array.lparray[count].val.num;
+        count++;
+        std::string bb = wtoa(fraData1->val.array.lparray[count].val.str);
+        TimeUnit b = convertTime(bb);
+        count++;
+        Rate c = fraData1->val.array.lparray[count].val.num;
+        count++;
+        Datum sub = { a, b, c };
+        fraData.push_back(sub);
+    }
+    count = 0;
+    int sizeimmFutData = (int)immFutData1->val.array.rows;
+    std::vector<Datum> immFutData;
+    for (int i = 0; i < sizeimmFutData; i++) {
+        Integer a = (int)immFutData1->val.array.lparray[count].val.num;
+        count++;
+        std::string bb = wtoa(immFutData1->val.array.lparray[count].val.str);
+        TimeUnit b = convertTime(bb);
+        count++;
+        Rate c = immFutData1->val.array.lparray[count].val.num;
+        count++;
+        Datum sub = { a, b, c };
+        immFutData.push_back(sub);
+    }
+    count = 0;
+    int sizeasxFutData = (int)asxFutData1->val.array.rows;
+    std::vector<Datum> asxFutData;
+    for (int i = 0; i < sizeasxFutData; i++) {
+        Integer a = (int)asxFutData1->val.array.lparray[count].val.num;
+        count++;
+        std::string bb = wtoa(asxFutData1->val.array.lparray[count].val.str);
+        TimeUnit b = convertTime(bb);
+        count++;
+        Rate c = asxFutData1->val.array.lparray[count].val.num;
+        count++;
+        Datum sub = { a, b, c };
+        asxFutData.push_back(sub);
+    }
+    count = 0;
+    int sizeswapData = (int)swapData1->val.array.rows;
+    std::vector<Datum> swapData;
+    for (int i = 0; i < sizeswapData; i++) {
+        Integer a = (int)swapData1->val.array.lparray[count].val.num;
+        count++;
+        std::string bb = wtoa(swapData1->val.array.lparray[count].val.str);
+        TimeUnit b = convertTime(bb);
+        count++;
+        Rate c = swapData1->val.array.lparray[count].val.num;
+        count++;
+        Datum sub = { a, b, c };
+        swapData.push_back(sub);
+    }
+    count = 0;
+    int sizebondData = (int)bondData1->val.array.rows;
+    std::vector<BondDatum> bondData;
+    for (int i = 0; i < sizebondData; i++) {
+        Integer a = (int)bondData1->val.array.lparray[count].val.num;
+        count++;
+        std::string bb = wtoa(bondData1->val.array.lparray[count].val.str);
+        TimeUnit b = convertTime(bb);
+        count++;
+        Integer c = (int)bondData1->val.array.lparray[count].val.num;
+        count++;
+        std::string dd = wtoa(bondData1->val.array.lparray[count].val.str);
+        Frequency d = convertFreq(dd);
+        count++;
+        Rate e = bondData1->val.array.lparray[count].val.num;
+        count++;
+        Real f = bondData1->val.array.lparray[count].val.num;
+        count++;
+        BondDatum sub = { a, b, c, d, e, f };
+        bondData.push_back(sub);
+    }
 
-    std::cout << "Name: " << myCal.name() << std::endl;
-    std::cout << "New Year is Holiday: " << myCal.isHoliday(newYearsEve) << std::endl;
-    std::cout << "New Year is Business Day: " << myCal.isBusinessDay(newYearsEve) << std::endl;
+    count = 0;
+    int sizebmaData = (int)bmaData1->val.array.rows;
+    std::vector<Datum> bmaData(sizebmaData);
+    for (int i = 0; i < sizebmaData; i++) {
+        Integer a = (int)bmaData1->val.array.lparray[count].val.num;
+        count++;
+        std::string bb = wtoa(bmaData1->val.array.lparray[count].val.str);
+        TimeUnit b = convertTime(bb);
+        count++;
+        Rate c = bmaData1->val.array.lparray[count].val.num;
+        count++;
+        Datum sub = { a, b, c };
+        bmaData.push_back(sub);
+    }
+    CommonVars vars(depositData, fraData, immFutData, asxFutData, swapData, bondData, bmaData);
+    QuantLib::Linear interpolator = Linear();
+    RelinkableHandle<YieldTermStructure> curveHandle;
 
-    std::cout << "--------------- Date Counter --------------------" << std::endl;
+    // check bonds
+    vars.termStructure = ext::shared_ptr<YieldTermStructure>(new
+        PiecewiseYieldCurve<ZeroYield, Linear, IterativeBootstrap>(vars.settlement, vars.bondHelpers,
+            Actual360(),
+            interpolator));
+    curveHandle.linkTo(vars.termStructure);
 
-    QuantLib::Date date1(28, QuantLib::Dec, 2008);
-    QuantLib::Date date2(04, QuantLib::Jan, 2009);
+    std::vector<Real> expectedPrice(vars.bonds);
+    std::vector<Real> estimatedPrice(vars.bonds);
 
-    std::cout << "First Date: " << date1 << std::endl;
-    std::cout << "Second Date: " << date2 << std::endl;
-    std::cout << "Business Days Betweeen: " << myCal.businessDaysBetween(date1, date2) << std::endl;
-    std::cout << "End of Month 1. Date: " << myCal.endOfMonth(date1) << std::endl;
-    std::cout << "End of Month 2. Date: " << myCal.endOfMonth(date2) << std::endl;
+    for (Size i = 0; i < vars.bonds; i++) {
+        Date maturity = vars.calendar.advance(vars.today,
+            bondData[i].n,
+            bondData[i].units);
+        Date issue = vars.calendar.advance(maturity,
+            -bondData[i].length,
+            Years);
+        std::vector<Rate> coupons(1, bondData[i].coupon / 100.0);
 
-    double tmp;
-    std::cin >> tmp;
-    
+        FixedRateBond bond(vars.bondSettlementDays, 100.0,
+            vars.schedules[i], coupons,
+            vars.bondDayCounter, vars.bondConvention,
+            vars.bondRedemption, issue);
+
+        ext::shared_ptr<PricingEngine> bondEngine(
+            new DiscountingBondEngine(curveHandle));
+        bond.setPricingEngine(bondEngine);
+
+        expectedPrice[i] = bondData[i].price;
+            estimatedPrice[i] = bond.cleanPrice();
+        Real error = std::fabs(expectedPrice[i] - estimatedPrice[i]);
+        if (error > tolerance) {
+            BOOST_ERROR(io::ordinal(i + 1) << " bond failure:" <<
+                std::setprecision(8) <<
+                "\n  estimated price: " << estimatedPrice[i] <<
+                "\n  expected price:  " << expectedPrice[i] <<
+                "\n  error:           " << error);
+        }
+    }
+
+    count = 0;
+    OPER sub(vars.bonds, 3);
+    for (int j = 0; j < vars.bonds; j++) {
+        sub[count] = expectedPrice[j];
+        count++;
+        sub[count] = estimatedPrice[j];
+        count++;
+        sub[count] = std::fabs(expectedPrice[j] - estimatedPrice[j]) < tolerance ? true : false;
+        count++;
+    }
+
+    result = sub;
+    return &result;
+};
+
+AddIn xai_function3(
+    // Function returning a pointer to an OPER with C++ name xll_function and Excel name XLL.FUNCTION.
+    // Don't forget prepend a question mark to the C++ name.
+    Function(XLL_LPOPER, L"?fraDataTest", L"XLL.fraDataTest")
+    // First argument is a double called x with an argument description and default value of 2
+    .Arg(XLL_LPOPER, L"depositData1", L"is the first double argument.", L"2")
+    .Arg(XLL_LPOPER, L"fraData1", L"is the first double argument.", L"2")
+    .Arg(XLL_LPOPER, L"immFutData1", L"is the first double argument.", L"2")
+    .Arg(XLL_LPOPER, L"asxFutData1", L"is the first double argument.", L"2")
+    .Arg(XLL_LPOPER, L"swapData1", L"is the first double argument.", L"2")
+    .Arg(XLL_LPOPER, L"bondData1", L"is the first double argument.", L"2")
+    .Arg(XLL_LPOPER, L"bmaData1", L"is the first double argument.", L"2")
+    // Paste function category.
+    .Category(L"Example")
+    // Insert Function description.
+    .FunctionHelp(L"Help on XLL.FUNCTION goes here.")
+    // Create entry for this function in Sandcastle Help File Builder project file.
+    .Alias(L"XLL.FUNCTION.ALIAS") // alternate name
+    .Documentation(
+        PARA_(
+            L"Free-form documentation for " C_(L"XLL.FUNCTION") L" goes here."
+        )
+        PARA_(L"But you can include MAML directives.")
+        PARA_(L"This is " B_(L"bold") " and so is " B_("this"))
+        PARA_(L"Math: " MATH_(int_ SUB_(minus_ infin_) SUP_(infin_) L"e" SUP_(L"x" sup2_ L"/2") L" dx"))
+    )
+);
+
+LPOPER WINAPI fraDataTest(XLOPER12* depositData1,
+    XLOPER12* fraData1,
+    XLOPER12* immFutData1,
+    XLOPER12* asxFutData1,
+    XLOPER12* swapData1,
+    XLOPER12* bondData1,
+    XLOPER12* bmaData1) {
+#pragma XLLEXPORT
+    static OPER result;
+
+    using namespace piecewise_yield_curve_test;
+    Real tolerance = 1.0e-9;
+    int sizeDepositData = (int)depositData1->val.array.rows;
+    int count = 0;
+    std::vector<Datum> depositData;
+    for (int i = 0; i < sizeDepositData; i++) {
+        Integer a = (int)depositData1->val.array.lparray[count].val.num;
+        count++;
+        std::string bb = wtoa(depositData1->val.array.lparray[count].val.str);
+        TimeUnit b = convertTime(bb);
+        count++;
+        Rate c = depositData1->val.array.lparray[count].val.num;
+        count++;
+        Datum sub = { a, b, c };
+        depositData.push_back(sub);
+    }
+    count = 0;
+    int sizefraData = (int)fraData1->val.array.rows;
+    std::vector<Datum> fraData;
+    for (int i = 0; i < sizefraData; i++) {
+        Integer a = (int)fraData1->val.array.lparray[count].val.num;
+        count++;
+        std::string bb = wtoa(fraData1->val.array.lparray[count].val.str);
+        TimeUnit b = convertTime(bb);
+        count++;
+        Rate c = fraData1->val.array.lparray[count].val.num;
+        count++;
+        Datum sub = { a, b, c };
+        fraData.push_back(sub);
+    }
+    count = 0;
+    int sizeimmFutData = (int)immFutData1->val.array.rows;
+    std::vector<Datum> immFutData;
+    for (int i = 0; i < sizeimmFutData; i++) {
+        Integer a = (int)immFutData1->val.array.lparray[count].val.num;
+        count++;
+        std::string bb = wtoa(immFutData1->val.array.lparray[count].val.str);
+        TimeUnit b = convertTime(bb);
+        count++;
+        Rate c = immFutData1->val.array.lparray[count].val.num;
+        count++;
+        Datum sub = { a, b, c };
+        immFutData.push_back(sub);
+    }
+    count = 0;
+    int sizeasxFutData = (int)asxFutData1->val.array.rows;
+    std::vector<Datum> asxFutData;
+    for (int i = 0; i < sizeasxFutData; i++) {
+        Integer a = (int)asxFutData1->val.array.lparray[count].val.num;
+        count++;
+        std::string bb = wtoa(asxFutData1->val.array.lparray[count].val.str);
+        TimeUnit b = convertTime(bb);
+        count++;
+        Rate c = asxFutData1->val.array.lparray[count].val.num;
+        count++;
+        Datum sub = { a, b, c };
+        asxFutData.push_back(sub);
+    }
+    count = 0;
+    int sizeswapData = (int)swapData1->val.array.rows;
+    std::vector<Datum> swapData;
+    for (int i = 0; i < sizeswapData; i++) {
+        Integer a = (int)swapData1->val.array.lparray[count].val.num;
+        count++;
+        std::string bb = wtoa(swapData1->val.array.lparray[count].val.str);
+        TimeUnit b = convertTime(bb);
+        count++;
+        Rate c = swapData1->val.array.lparray[count].val.num;
+        count++;
+        Datum sub = { a, b, c };
+        swapData.push_back(sub);
+    }
+    count = 0;
+    int sizebondData = (int)bondData1->val.array.rows;
+    std::vector<BondDatum> bondData;
+    for (int i = 0; i < sizebondData; i++) {
+        Integer a = (int)bondData1->val.array.lparray[count].val.num;
+        count++;
+        std::string bb = wtoa(bondData1->val.array.lparray[count].val.str);
+        TimeUnit b = convertTime(bb);
+        count++;
+        Integer c = (int)bondData1->val.array.lparray[count].val.num;
+        count++;
+        std::string dd = wtoa(bondData1->val.array.lparray[count].val.str);
+        Frequency d = convertFreq(dd);
+        count++;
+        Rate e = bondData1->val.array.lparray[count].val.num;
+        count++;
+        Real f = bondData1->val.array.lparray[count].val.num;
+        count++;
+        BondDatum sub = { a, b, c, d, e, f };
+        bondData.push_back(sub);
+    }
+
+    count = 0;
+    int sizebmaData = (int)bmaData1->val.array.rows;
+    std::vector<Datum> bmaData(sizebmaData);
+    for (int i = 0; i < sizebmaData; i++) {
+        Integer a = (int)bmaData1->val.array.lparray[count].val.num;
+        count++;
+        std::string bb = wtoa(bmaData1->val.array.lparray[count].val.str);
+        TimeUnit b = convertTime(bb);
+        count++;
+        Rate c = bmaData1->val.array.lparray[count].val.num;
+        count++;
+        Datum sub = { a, b, c };
+        bmaData.push_back(sub);
+    }
+    CommonVars vars(depositData, fraData, immFutData, asxFutData, swapData, bondData, bmaData);
+    QuantLib::Linear interpolator = Linear();
+    RelinkableHandle<YieldTermStructure> curveHandle;
+
+    vars.termStructure = ext::shared_ptr<YieldTermStructure>(new
+        PiecewiseYieldCurve<ZeroYield, Linear>(vars.settlement, vars.fraHelpers,
+            Actual360(),
+            interpolator));
+    curveHandle.linkTo(vars.termStructure);
+
+#ifdef QL_USE_INDEXED_COUPON
+    bool useIndexedFra = false;
+#else
+    bool useIndexedFra = true;
+#endif
+    std::vector<Rate> expectedRate(vars.fras);
+    std::vector<Rate> estimatedRate(vars.fras);
+    ext::shared_ptr<IborIndex> euribor3m(new Euribor3M(curveHandle));
+    for (Size i = 0; i < vars.fras; i++) {
+        Date start =
+            vars.calendar.advance(vars.settlement,
+                fraData[i].n,
+                fraData[i].units,
+                euribor3m->businessDayConvention(),
+                euribor3m->endOfMonth());
+        BOOST_REQUIRE(fraData[i].units == Months);
+        Date end = vars.calendar.advance(vars.settlement, 3 + fraData[i].n, Months,
+            euribor3m->businessDayConvention(),
+            euribor3m->endOfMonth());
+
+        ForwardRateAgreement fra(start, end, Position::Long,
+            fraData[i].rate / 100, 100.0,
+            euribor3m, curveHandle,
+            useIndexedFra);
+        expectedRate[i] = fraData[i].rate / 100;
+        estimatedRate[i] = fra.forwardRate();
+        if (std::fabs(expectedRate[i] - estimatedRate[i]) > tolerance) {
+            BOOST_ERROR(io::ordinal(i + 1) << " FRA failure:" <<
+                std::setprecision(8) <<
+                "\n  estimated rate: " << io::rate(estimatedRate[i]) <<
+                "\n  expected rate:  " << io::rate(expectedRate[i]));
+        }
+    }
+
+    count = 0;
+    OPER sub(vars.fras, 3);
+    for (int j = 0; j < vars.fras; j++) {
+        sub[count] = expectedRate[j];
+        count++;
+        sub[count] = estimatedRate[j];
+        count++;
+        sub[count] = std::fabs(expectedRate[j] - estimatedRate[j]) < tolerance ? true : false;
+        count++;
+    }
+
+    result = sub;
     return &result;
 }
-*/
+
+AddIn xai_function4(
+    // Function returning a pointer to an OPER with C++ name xll_function and Excel name XLL.FUNCTION.
+    // Don't forget prepend a question mark to the C++ name.
+    Function(XLL_LPOPER, L"?immFutsDataTest", L"XLL.immFutsDataTest")
+    // First argument is a double called x with an argument description and default value of 2
+    .Arg(XLL_LPOPER, L"depositData1", L"is the first double argument.", L"2")
+    .Arg(XLL_LPOPER, L"fraData1", L"is the first double argument.", L"2")
+    .Arg(XLL_LPOPER, L"immFutData1", L"is the first double argument.", L"2")
+    .Arg(XLL_LPOPER, L"asxFutData1", L"is the first double argument.", L"2")
+    .Arg(XLL_LPOPER, L"swapData1", L"is the first double argument.", L"2")
+    .Arg(XLL_LPOPER, L"bondData1", L"is the first double argument.", L"2")
+    .Arg(XLL_LPOPER, L"bmaData1", L"is the first double argument.", L"2")
+    // Paste function category.
+    .Category(L"Example")
+    // Insert Function description.
+    .FunctionHelp(L"Help on XLL.FUNCTION goes here.")
+    // Create entry for this function in Sandcastle Help File Builder project file.
+    .Alias(L"XLL.FUNCTION.ALIAS") // alternate name
+    .Documentation(
+        PARA_(
+            L"Free-form documentation for " C_(L"XLL.FUNCTION") L" goes here."
+        )
+        PARA_(L"But you can include MAML directives.")
+        PARA_(L"This is " B_(L"bold") " and so is " B_("this"))
+        PARA_(L"Math: " MATH_(int_ SUB_(minus_ infin_) SUP_(infin_) L"e" SUP_(L"x" sup2_ L"/2") L" dx"))
+    )
+);
+
+LPOPER WINAPI immFutsDataTest(XLOPER12* depositData1,
+    XLOPER12* fraData1,
+    XLOPER12* immFutData1,
+    XLOPER12* asxFutData1,
+    XLOPER12* swapData1,
+    XLOPER12* bondData1,
+    XLOPER12* bmaData1) {
+#pragma XLLEXPORT
+    static OPER result;
+
+    using namespace piecewise_yield_curve_test;
+    Real tolerance = 1.0e-9;
+    int sizeDepositData = (int)depositData1->val.array.rows;
+    int count = 0;
+    std::vector<Datum> depositData;
+    for (int i = 0; i < sizeDepositData; i++) {
+        Integer a = (int)depositData1->val.array.lparray[count].val.num;
+        count++;
+        std::string bb = wtoa(depositData1->val.array.lparray[count].val.str);
+        TimeUnit b = convertTime(bb);
+        count++;
+        Rate c = depositData1->val.array.lparray[count].val.num;
+        count++;
+        Datum sub = { a, b, c };
+        depositData.push_back(sub);
+    }
+    count = 0;
+    int sizefraData = (int)fraData1->val.array.rows;
+    std::vector<Datum> fraData;
+    for (int i = 0; i < sizefraData; i++) {
+        Integer a = (int)fraData1->val.array.lparray[count].val.num;
+        count++;
+        std::string bb = wtoa(fraData1->val.array.lparray[count].val.str);
+        TimeUnit b = convertTime(bb);
+        count++;
+        Rate c = fraData1->val.array.lparray[count].val.num;
+        count++;
+        Datum sub = { a, b, c };
+        fraData.push_back(sub);
+    }
+    count = 0;
+    int sizeimmFutData = (int)immFutData1->val.array.rows;
+    std::vector<Datum> immFutData;
+    for (int i = 0; i < sizeimmFutData; i++) {
+        Integer a = (int)immFutData1->val.array.lparray[count].val.num;
+        count++;
+        std::string bb = wtoa(immFutData1->val.array.lparray[count].val.str);
+        TimeUnit b = convertTime(bb);
+        count++;
+        Rate c = immFutData1->val.array.lparray[count].val.num;
+        count++;
+        Datum sub = { a, b, c };
+        immFutData.push_back(sub);
+    }
+    count = 0;
+    int sizeasxFutData = (int)asxFutData1->val.array.rows;
+    std::vector<Datum> asxFutData;
+    for (int i = 0; i < sizeasxFutData; i++) {
+        Integer a = (int)asxFutData1->val.array.lparray[count].val.num;
+        count++;
+        std::string bb = wtoa(asxFutData1->val.array.lparray[count].val.str);
+        TimeUnit b = convertTime(bb);
+        count++;
+        Rate c = asxFutData1->val.array.lparray[count].val.num;
+        count++;
+        Datum sub = { a, b, c };
+        asxFutData.push_back(sub);
+    }
+    count = 0;
+    int sizeswapData = (int)swapData1->val.array.rows;
+    std::vector<Datum> swapData;
+    for (int i = 0; i < sizeswapData; i++) {
+        Integer a = (int)swapData1->val.array.lparray[count].val.num;
+        count++;
+        std::string bb = wtoa(swapData1->val.array.lparray[count].val.str);
+        TimeUnit b = convertTime(bb);
+        count++;
+        Rate c = swapData1->val.array.lparray[count].val.num;
+        count++;
+        Datum sub = { a, b, c };
+        swapData.push_back(sub);
+    }
+    count = 0;
+    int sizebondData = (int)bondData1->val.array.rows;
+    std::vector<BondDatum> bondData;
+    for (int i = 0; i < sizebondData; i++) {
+        Integer a = (int)bondData1->val.array.lparray[count].val.num;
+        count++;
+        std::string bb = wtoa(bondData1->val.array.lparray[count].val.str);
+        TimeUnit b = convertTime(bb);
+        count++;
+        Integer c = (int)bondData1->val.array.lparray[count].val.num;
+        count++;
+        std::string dd = wtoa(bondData1->val.array.lparray[count].val.str);
+        Frequency d = convertFreq(dd);
+        count++;
+        Rate e = bondData1->val.array.lparray[count].val.num;
+        count++;
+        Real f = bondData1->val.array.lparray[count].val.num;
+        count++;
+        BondDatum sub = { a, b, c, d, e, f };
+        bondData.push_back(sub);
+    }
+
+    count = 0;
+    int sizebmaData = (int)bmaData1->val.array.rows;
+    std::vector<Datum> bmaData(sizebmaData);
+    for (int i = 0; i < sizebmaData; i++) {
+        Integer a = (int)bmaData1->val.array.lparray[count].val.num;
+        count++;
+        std::string bb = wtoa(bmaData1->val.array.lparray[count].val.str);
+        TimeUnit b = convertTime(bb);
+        count++;
+        Rate c = bmaData1->val.array.lparray[count].val.num;
+        count++;
+        Datum sub = { a, b, c };
+        bmaData.push_back(sub);
+    }
+    CommonVars vars(depositData, fraData, immFutData, asxFutData, swapData, bondData, bmaData);
+    
+    QuantLib::Linear interpolator = Linear();
+    RelinkableHandle<YieldTermStructure> curveHandle;
+    vars.termStructure = ext::shared_ptr<YieldTermStructure>(new
+        PiecewiseYieldCurve<ZeroYield, Linear>(vars.settlement, vars.immFutHelpers,
+            Actual360(),
+            interpolator));
+    curveHandle.linkTo(vars.termStructure);
+
+    ext::shared_ptr<IborIndex> euribor3m(new Euribor3M(curveHandle));
+
+    std::vector<Rate> expectedRate(vars.immFuts);
+    std::vector<Rate> estimatedRate(vars.immFuts);
+    Date immStart = Date();
+    for (Size i = 0; i < vars.immFuts; i++) {
+        immStart = IMM::nextDate(immStart, false);
+        // if the fixing is before the evaluation date, we
+        // just jump forward by one future maturity
+        if (euribor3m->fixingDate(immStart) <
+            Settings::instance().evaluationDate())
+            immStart = IMM::nextDate(immStart, false);
+        Date end = vars.calendar.advance(immStart, 3, Months,
+            euribor3m->businessDayConvention(),
+            euribor3m->endOfMonth());
+
+        ForwardRateAgreement immFut(immStart, end, Position::Long,
+            immFutData[i].rate / 100, 100.0,
+            euribor3m, curveHandle);
+        expectedRate[i] = immFutData[i].rate / 100;
+            estimatedRate[i] = immFut.forwardRate();
+        if (std::fabs(expectedRate[i] - estimatedRate[i]) > tolerance) {
+            BOOST_ERROR(io::ordinal(i + 1) << " IMM futures failure:" <<
+                std::setprecision(8) <<
+                "\n  estimated rate: " << io::rate(estimatedRate[i]) <<
+                "\n  expected rate:  " << io::rate(expectedRate[i]));
+        }
+    }
+
+    count = 0;
+    OPER sub(vars.immFuts, 3);
+    for (int j = 0; j < vars.immFuts; j++) {
+        sub[count] = expectedRate[j];
+        count++;
+        sub[count] = estimatedRate[j];
+        count++;
+        sub[count] = std::fabs(expectedRate[j] - estimatedRate[j]) < tolerance ? true : false;
+        count++;
+    }
+
+    result = sub;
+    return &result;
+}
+
+AddIn xai_function5(
+    // Function returning a pointer to an OPER with C++ name xll_function and Excel name XLL.FUNCTION.
+    // Don't forget prepend a question mark to the C++ name.
+    Function(XLL_LPOPER, L"?asxFutsDataTest", L"XLL.asxFutsDataTest")
+    // First argument is a double called x with an argument description and default value of 2
+    .Arg(XLL_LPOPER, L"depositData1", L"is the first double argument.", L"2")
+    .Arg(XLL_LPOPER, L"fraData1", L"is the first double argument.", L"2")
+    .Arg(XLL_LPOPER, L"immFutData1", L"is the first double argument.", L"2")
+    .Arg(XLL_LPOPER, L"asxFutData1", L"is the first double argument.", L"2")
+    .Arg(XLL_LPOPER, L"swapData1", L"is the first double argument.", L"2")
+    .Arg(XLL_LPOPER, L"bondData1", L"is the first double argument.", L"2")
+    .Arg(XLL_LPOPER, L"bmaData1", L"is the first double argument.", L"2")
+    // Paste function category.
+    .Category(L"Example")
+    // Insert Function description.
+    .FunctionHelp(L"Help on XLL.FUNCTION goes here.")
+    // Create entry for this function in Sandcastle Help File Builder project file.
+    .Alias(L"XLL.FUNCTION.ALIAS") // alternate name
+    .Documentation(
+        PARA_(
+            L"Free-form documentation for " C_(L"XLL.FUNCTION") L" goes here."
+        )
+        PARA_(L"But you can include MAML directives.")
+        PARA_(L"This is " B_(L"bold") " and so is " B_("this"))
+        PARA_(L"Math: " MATH_(int_ SUB_(minus_ infin_) SUP_(infin_) L"e" SUP_(L"x" sup2_ L"/2") L" dx"))
+    )
+);
+
+LPOPER WINAPI asxFutsDataTest(XLOPER12* depositData1,
+    XLOPER12* fraData1,
+    XLOPER12* immFutData1,
+    XLOPER12* asxFutData1,
+    XLOPER12* swapData1,
+    XLOPER12* bondData1,
+    XLOPER12* bmaData1) {
+#pragma XLLEXPORT
+    static OPER result;
+
+    using namespace piecewise_yield_curve_test;
+    Real tolerance = 1.0e-9;
+    int sizeDepositData = (int)depositData1->val.array.rows;
+    int count = 0;
+    std::vector<Datum> depositData;
+    for (int i = 0; i < sizeDepositData; i++) {
+        Integer a = (int)depositData1->val.array.lparray[count].val.num;
+        count++;
+        std::string bb = wtoa(depositData1->val.array.lparray[count].val.str);
+        TimeUnit b = convertTime(bb);
+        count++;
+        Rate c = depositData1->val.array.lparray[count].val.num;
+        count++;
+        Datum sub = { a, b, c };
+        depositData.push_back(sub);
+    }
+    count = 0;
+    int sizefraData = (int)fraData1->val.array.rows;
+    std::vector<Datum> fraData;
+    for (int i = 0; i < sizefraData; i++) {
+        Integer a = (int)fraData1->val.array.lparray[count].val.num;
+        count++;
+        std::string bb = wtoa(fraData1->val.array.lparray[count].val.str);
+        TimeUnit b = convertTime(bb);
+        count++;
+        Rate c = fraData1->val.array.lparray[count].val.num;
+        count++;
+        Datum sub = { a, b, c };
+        fraData.push_back(sub);
+    }
+    count = 0;
+    int sizeimmFutData = (int)immFutData1->val.array.rows;
+    std::vector<Datum> immFutData;
+    for (int i = 0; i < sizeimmFutData; i++) {
+        Integer a = (int)immFutData1->val.array.lparray[count].val.num;
+        count++;
+        std::string bb = wtoa(immFutData1->val.array.lparray[count].val.str);
+        TimeUnit b = convertTime(bb);
+        count++;
+        Rate c = immFutData1->val.array.lparray[count].val.num;
+        count++;
+        Datum sub = { a, b, c };
+        immFutData.push_back(sub);
+    }
+    count = 0;
+    int sizeasxFutData = (int)asxFutData1->val.array.rows;
+    std::vector<Datum> asxFutData;
+    for (int i = 0; i < sizeasxFutData; i++) {
+        Integer a = (int)asxFutData1->val.array.lparray[count].val.num;
+        count++;
+        std::string bb = wtoa(asxFutData1->val.array.lparray[count].val.str);
+        TimeUnit b = convertTime(bb);
+        count++;
+        Rate c = asxFutData1->val.array.lparray[count].val.num;
+        count++;
+        Datum sub = { a, b, c };
+        asxFutData.push_back(sub);
+    }
+    count = 0;
+    int sizeswapData = (int)swapData1->val.array.rows;
+    std::vector<Datum> swapData;
+    for (int i = 0; i < sizeswapData; i++) {
+        Integer a = (int)swapData1->val.array.lparray[count].val.num;
+        count++;
+        std::string bb = wtoa(swapData1->val.array.lparray[count].val.str);
+        TimeUnit b = convertTime(bb);
+        count++;
+        Rate c = swapData1->val.array.lparray[count].val.num;
+        count++;
+        Datum sub = { a, b, c };
+        swapData.push_back(sub);
+    }
+    count = 0;
+    int sizebondData = (int)bondData1->val.array.rows;
+    std::vector<BondDatum> bondData;
+    for (int i = 0; i < sizebondData; i++) {
+        Integer a = (int)bondData1->val.array.lparray[count].val.num;
+        count++;
+        std::string bb = wtoa(bondData1->val.array.lparray[count].val.str);
+        TimeUnit b = convertTime(bb);
+        count++;
+        Integer c = (int)bondData1->val.array.lparray[count].val.num;
+        count++;
+        std::string dd = wtoa(bondData1->val.array.lparray[count].val.str);
+        Frequency d = convertFreq(dd);
+        count++;
+        Rate e = bondData1->val.array.lparray[count].val.num;
+        count++;
+        Real f = bondData1->val.array.lparray[count].val.num;
+        count++;
+        BondDatum sub = { a, b, c, d, e, f };
+        bondData.push_back(sub);
+    }
+
+    count = 0;
+    int sizebmaData = (int)bmaData1->val.array.rows;
+    std::vector<Datum> bmaData(sizebmaData);
+    for (int i = 0; i < sizebmaData; i++) {
+        Integer a = (int)bmaData1->val.array.lparray[count].val.num;
+        count++;
+        std::string bb = wtoa(bmaData1->val.array.lparray[count].val.str);
+        TimeUnit b = convertTime(bb);
+        count++;
+        Rate c = bmaData1->val.array.lparray[count].val.num;
+        count++;
+        Datum sub = { a, b, c };
+        bmaData.push_back(sub);
+    }
+    CommonVars vars(depositData, fraData, immFutData, asxFutData, swapData, bondData, bmaData);
+    QuantLib::Linear interpolator = Linear();
+    RelinkableHandle<YieldTermStructure> curveHandle;
+
+
+    vars.termStructure = ext::shared_ptr<YieldTermStructure>(new
+        PiecewiseYieldCurve<ZeroYield, Linear>(vars.settlement, vars.asxFutHelpers,
+            Actual360(),
+            interpolator));
+    curveHandle.linkTo(vars.termStructure);
+
+    ext::shared_ptr<IborIndex> euribor3m(new Euribor3M(curveHandle));
+
+    std::vector<Rate> expectedRate(vars.immFuts);
+    std::vector<Rate> estimatedRate(vars.immFuts);
+
+    Date asxStart = Date();
+    for (Size i = 0; i < vars.asxFuts; i++) {
+        asxStart = ASX::nextDate(asxStart, false);
+        // if the fixing is before the evaluation date, we
+        // just jump forward by one future maturity
+        if (euribor3m->fixingDate(asxStart) <
+            Settings::instance().evaluationDate())
+            asxStart = ASX::nextDate(asxStart, false);
+        if (euribor3m->fixingCalendar().isHoliday(asxStart))
+            continue;
+        Date end = vars.calendar.advance(asxStart, 3, Months,
+            euribor3m->businessDayConvention(),
+            euribor3m->endOfMonth());
+
+        ForwardRateAgreement asxFut(asxStart, end, Position::Long,
+            asxFutData[i].rate / 100, 100.0,
+            euribor3m, curveHandle);
+        expectedRate[i] = asxFutData[i].rate / 100;
+            estimatedRate[i] = asxFut.forwardRate();
+        if (std::fabs(expectedRate[i] - estimatedRate[i]) > tolerance) {
+            BOOST_ERROR(io::ordinal(i + 1) << " ASX futures failure:" <<
+                std::setprecision(8) <<
+                "\n  estimated rate: " << io::rate(estimatedRate[i]) <<
+                "\n  expected rate:  " << io::rate(expectedRate[i]));
+        }
+    }
+    count = 0;
+    OPER sub(vars.asxFuts, 3);
+    for (int j = 0; j < vars.asxFuts; j++) {
+        sub[count] = expectedRate[j];
+        count++;
+        sub[count] = estimatedRate[j];
+        count++;
+        sub[count] = std::fabs(expectedRate[j] - estimatedRate[j]) < tolerance ? true : false;
+        count++;
+    }
+
+    result = sub;
+    return &result;
+}
+
+AddIn xai_functionbma(
+    // Function returning a pointer to an OPER with C++ name xll_function and Excel name XLL.FUNCTION.
+    // Don't forget prepend a question mark to the C++ name.
+    Function(XLL_LPOPER, L"?bmaTest", L"XLL.bmaTest")
+    // First argument is a double called x with an argument description and default value of 2
+    .Arg(XLL_LPOPER, L"depositData1", L"is the first double argument.", L"2")
+    .Arg(XLL_LPOPER, L"fraData1", L"is the first double argument.", L"2")
+    .Arg(XLL_LPOPER, L"immFutData1", L"is the first double argument.", L"2")
+    .Arg(XLL_LPOPER, L"asxFutData1", L"is the first double argument.", L"2")
+    .Arg(XLL_LPOPER, L"swapData1", L"is the first double argument.", L"2")
+    .Arg(XLL_LPOPER, L"bondData1", L"is the first double argument.", L"2")
+    .Arg(XLL_LPOPER, L"bmaData1", L"is the first double argument.", L"2")
+    // Paste function category.
+    .Category(L"Example")
+    // Insert Function description.
+    .FunctionHelp(L"Help on XLL.FUNCTION goes here.")
+    // Create entry for this function in Sandcastle Help File Builder project file.
+    .Alias(L"XLL.FUNCTION.ALIAS") // alternate name
+    .Documentation(
+        PARA_(
+            L"Free-form documentation for " C_(L"XLL.FUNCTION") L" goes here."
+        )
+        PARA_(L"But you can include MAML directives.")
+        PARA_(L"This is " B_(L"bold") " and so is " B_("this"))
+        PARA_(L"Math: " MATH_(int_ SUB_(minus_ infin_) SUP_(infin_) L"e" SUP_(L"x" sup2_ L"/2") L" dx"))
+    )
+);
+
+LPOPER WINAPI bmaTest(XLOPER12* depositData1,
+    XLOPER12* fraData1,
+    XLOPER12* immFutData1,
+    XLOPER12* asxFutData1,
+    XLOPER12* swapData1,
+    XLOPER12* bondData1,
+    XLOPER12* bmaData1) {
+#pragma XLLEXPORT
+    static OPER result;
+
+    using namespace piecewise_yield_curve_test;
+    Real tolerance = 1.0e-9;
+
+    int sizeDepositData = (int)depositData1->val.array.rows;
+    int count = 0;
+    std::vector<Datum> depositData;
+    for (int i = 0; i < sizeDepositData; i++) {
+        Integer a = (int)depositData1->val.array.lparray[count].val.num;
+        count++;
+        std::string bb = wtoa(depositData1->val.array.lparray[count].val.str);
+        TimeUnit b = convertTime(bb);
+        count++;
+        Rate c = depositData1->val.array.lparray[count].val.num;
+        count++;
+        Datum sub = { a, b, c };
+        depositData.push_back(sub);
+    }
+    count = 0;
+    int sizefraData = (int)fraData1->val.array.rows;
+    std::vector<Datum> fraData;
+    for (int i = 0; i < sizefraData; i++) {
+        Integer a = (int)fraData1->val.array.lparray[count].val.num;
+        count++;
+        std::string bb = wtoa(fraData1->val.array.lparray[count].val.str);
+        TimeUnit b = convertTime(bb);
+        count++;
+        Rate c = fraData1->val.array.lparray[count].val.num;
+        count++;
+        Datum sub = { a, b, c };
+        fraData.push_back(sub);
+    }
+    count = 0;
+    int sizeimmFutData = (int)immFutData1->val.array.rows;
+    std::vector<Datum> immFutData;
+    for (int i = 0; i < sizeimmFutData; i++) {
+        Integer a = (int)immFutData1->val.array.lparray[count].val.num;
+        count++;
+        std::string bb = wtoa(immFutData1->val.array.lparray[count].val.str);
+        TimeUnit b = convertTime(bb);
+        count++;
+        Rate c = immFutData1->val.array.lparray[count].val.num;
+        count++;
+        Datum sub = { a, b, c };
+        immFutData.push_back(sub);
+    }
+    count = 0;
+    int sizeasxFutData = (int)asxFutData1->val.array.rows;
+    std::vector<Datum> asxFutData;
+    for (int i = 0; i < sizeasxFutData; i++) {
+        Integer a = (int)asxFutData1->val.array.lparray[count].val.num;
+        count++;
+        std::string bb = wtoa(asxFutData1->val.array.lparray[count].val.str);
+        TimeUnit b = convertTime(bb);
+        count++;
+        Rate c = asxFutData1->val.array.lparray[count].val.num;
+        count++;
+        Datum sub = { a, b, c };
+        asxFutData.push_back(sub);
+    }
+    count = 0;
+    int sizeswapData = (int)swapData1->val.array.rows;
+    std::vector<Datum> swapData;
+    for (int i = 0; i < sizeswapData; i++) {
+        Integer a = (int)swapData1->val.array.lparray[count].val.num;
+        count++;
+        std::string bb = wtoa(swapData1->val.array.lparray[count].val.str);
+        TimeUnit b = convertTime(bb);
+        count++;
+        Rate c = swapData1->val.array.lparray[count].val.num;
+        count++;
+        Datum sub = { a, b, c };
+        swapData.push_back(sub);
+    }
+    count = 0;
+    int sizebondData = (int)bondData1->val.array.rows;
+    std::vector<BondDatum> bondData;
+    for (int i = 0; i < sizebondData; i++) {
+        Integer a = (int)bondData1->val.array.lparray[count].val.num;
+        count++;
+        std::string bb = wtoa(bondData1->val.array.lparray[count].val.str);
+        TimeUnit b = convertTime(bb);
+        count++;
+        Integer c = (int)bondData1->val.array.lparray[count].val.num;
+        count++;
+        std::string dd = wtoa(bondData1->val.array.lparray[count].val.str);
+        Frequency d = convertFreq(dd);
+        count++;
+        Rate e = bondData1->val.array.lparray[count].val.num;
+        count++;
+        Real f = bondData1->val.array.lparray[count].val.num;
+        count++;
+        BondDatum sub = { a, b, c, d, e, f };
+        bondData.push_back(sub);
+    }
+
+    count = 0;
+    int sizebmaData = (int)bmaData1->val.array.rows;
+    std::vector<Datum> bmaData(sizebmaData);
+    for (int i = 0; i < sizebmaData; i++) {
+        Integer a = (int)bmaData1->val.array.lparray[count].val.num;
+        count++;
+        std::string bb = wtoa(bmaData1->val.array.lparray[count].val.str);
+        TimeUnit b = convertTime(bb);
+        count++;
+        Rate c = bmaData1->val.array.lparray[count].val.num;
+        count++;
+        Datum sub = { a, b, c };
+        bmaData.push_back(sub);
+    }
+    CommonVars vars(depositData, fraData, immFutData, asxFutData, swapData, bondData, bmaData);
+
+    // re-adjust settlement
+    vars.calendar = JointCalendar(BMAIndex().fixingCalendar(),
+        USDLibor(3 * Months).fixingCalendar(),
+        JoinHolidays);
+    vars.today = vars.calendar.adjust(Date::todaysDate());
+    Settings::instance().evaluationDate() = vars.today;
+    vars.settlement =
+        vars.calendar.advance(vars.today, vars.settlementDays, Days);
+
+
+    Handle<YieldTermStructure> riskFreeCurve(
+        ext::shared_ptr<YieldTermStructure>(
+            new FlatForward(vars.settlement, 0.04, Actual360())));
+
+    ext::shared_ptr<BMAIndex> bmaIndex(new BMAIndex);
+    ext::shared_ptr<IborIndex> liborIndex(
+        new USDLibor(3 * Months, riskFreeCurve));
+    for (Size i = 0; i < vars.bmas; ++i) {
+        Handle<Quote> f(vars.fractions[i]);
+        vars.bmaHelpers[i] = ext::shared_ptr<RateHelper>(
+            new BMASwapRateHelper(f, bmaData[i].n * bmaData[i].units,
+                vars.settlementDays,
+                vars.calendar,
+                Period(vars.bmaFrequency),
+                vars.bmaConvention,
+                vars.bmaDayCounter,
+                bmaIndex,
+                liborIndex));
+    }
+
+    Weekday w = vars.today.weekday();
+    Date lastWednesday =
+        (w >= 4) ? vars.today - (w - 4) : vars.today + (4 - w - 7);
+    Date lastFixing = bmaIndex->fixingCalendar().adjust(lastWednesday);
+    bmaIndex->addFixing(lastFixing, 0.03);
+
+    QuantLib::Linear interpolator = Linear();
+
+    vars.termStructure = ext::shared_ptr<YieldTermStructure>(new
+        PiecewiseYieldCurve<ZeroYield, Linear, IterativeBootstrap>(vars.today, vars.bmaHelpers,
+            Actual360(),
+            interpolator));
+
+    RelinkableHandle<YieldTermStructure> curveHandle;
+    curveHandle.linkTo(vars.termStructure);
+
+    // check BMA swaps
+    std::vector<Real> expectedFraction(vars.bmas);
+    std::vector<Real> estimatedFraction(vars.bmas);
+
+    ext::shared_ptr<BMAIndex> bma(new BMAIndex(curveHandle));
+    ext::shared_ptr<IborIndex> libor3m(new USDLibor(3 * Months,
+        riskFreeCurve));
+    for (Size i = 0; i < vars.bmas; i++) {
+        Period tenor = bmaData[i].n * bmaData[i].units;
+
+        Schedule bmaSchedule =
+            MakeSchedule().from(vars.settlement)
+            .to(vars.settlement + tenor)
+            .withFrequency(vars.bmaFrequency)
+            .withCalendar(bma->fixingCalendar())
+            .withConvention(vars.bmaConvention)
+            .backwards();
+        Schedule liborSchedule =
+            MakeSchedule().from(vars.settlement)
+            .to(vars.settlement + tenor)
+            .withTenor(libor3m->tenor())
+            .withCalendar(libor3m->fixingCalendar())
+            .withConvention(libor3m->businessDayConvention())
+            .endOfMonth(libor3m->endOfMonth())
+            .backwards();
+
+
+        BMASwap swap(BMASwap::Payer, 100.0,
+            liborSchedule, 0.75, 0.0,
+            libor3m, libor3m->dayCounter(),
+            bmaSchedule, bma, vars.bmaDayCounter);
+        swap.setPricingEngine(ext::shared_ptr<PricingEngine>(
+            new DiscountingSwapEngine(libor3m->forwardingTermStructure())));
+
+        expectedFraction[i] = bmaData[i].rate / 100;
+            estimatedFraction[i] = swap.fairLiborFraction();
+        Real error = std::fabs(expectedFraction[i] - estimatedFraction[i]);
+        if (error > tolerance) {
+            BOOST_ERROR(bmaData[i].n << " year(s) BMA swap:\n"
+                << std::setprecision(8)
+                << "\n estimated libor fraction: " << estimatedFraction[i]
+                << "\n expected libor fraction:  " << expectedFraction[i]
+                << "\n error:          " << error
+                << "\n tolerance:      " << tolerance);
+        }
+    }
+
+    count = 0;
+    OPER sub(vars.bmas, 3);
+    for (int j = 0; j < vars.bmas; j++) {
+        sub[count] = expectedFraction[j];
+        count++;
+        sub[count] = estimatedFraction[j];
+        count++;
+        sub[count] = std::fabs(expectedFraction[j] - estimatedFraction[j]) < tolerance ? true : false;
+        count++;
+    }
+
+    result = sub;
+    return &result;
+}
