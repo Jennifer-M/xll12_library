@@ -1711,7 +1711,7 @@ LPOPER WINAPI bmaTest(XLOPER12* depositData1,
 
     count = 0;
     int sizebmaData = (int)bmaData1->val.array.rows;
-    std::vector<Datum> bmaData(sizebmaData);
+    std::vector<Datum> bmaData;
     for (int i = 0; i < sizebmaData; i++) {
         Integer a = (int)bmaData1->val.array.lparray[count].val.num;
         count++;
