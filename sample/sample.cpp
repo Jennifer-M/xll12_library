@@ -534,13 +534,13 @@ LPOPER WINAPI depositDataTest(XLOPER12* depositData1,
             interpolator)));
 
     sizeDepositData = (int)depositData.size();
-    std::vector<Rate> expectedRate(sizeDepositData);
+ //   std::vector<Rate> expectedRate(sizeDepositData);
     std::vector<Rate> estimatedRate(sizeDepositData);
     for (Size i = 0; i < sizeDepositData; i++) {
         Euribor index(depositData[i].n * depositData[i].units, curveHandle);
-        expectedRate[i] = depositData[i].rate / 100;
+ //       expectedRate[i] = depositData[i].rate / 100;
             estimatedRate[i] = index.fixing(vars.today);
-        if (std::fabs(expectedRate[i] - estimatedRate[i]) > tolerance) {
+ /*       if (std::fabs(expectedRate[i] - estimatedRate[i]) > tolerance) {
             BOOST_ERROR(
                 depositData[i].n << " "
                 << (depositData[i].units == Weeks ? "week(s)" : "month(s)")
@@ -549,16 +549,19 @@ LPOPER WINAPI depositDataTest(XLOPER12* depositData1,
                 << "\n    estimated rate: " << io::rate(estimatedRate[i])
                 << "\n    expected rate:  " << io::rate(expectedRate[i]));
         }
+*/
     }
-    count = 0;
-    OPER sub(sizeDepositData,3);
+    //set up in comments can return the expected rate, estimated rate and whether exceed tolerance
+    // changed sub[j] = estimatedRate... to sub[count] = estimated Rate
+    //count = 0;
+    OPER sub(sizeDepositData,1);
     for (int j = 0; j < sizeDepositData; j++) {
-        sub[count] = expectedRate[j];
-        count++;
-        sub[count] = estimatedRate[j];
-        count++;
-        sub[count] = std::fabs(expectedRate[j] - estimatedRate[j]) < tolerance ? true : false;
-        count++;
+        //sub[count] = expectedRate[j];
+        //count++;
+        sub[j] = estimatedRate[j];
+        //count++;
+        //sub[count] = std::fabs(expectedRate[j] - estimatedRate[j]) < tolerance ? true : false;
+        //count++;
     }
     
     result = sub;
@@ -734,9 +737,9 @@ LPOPER WINAPI swapDataTest(XLOPER12* depositData1,
             .withFixedLegConvention(vars.fixedLegConvention)
             .withFixedLegTerminationDateConvention(vars.fixedLegConvention);
 
-        expectedRate[i] = swapData[i].rate / 100;
+//        expectedRate[i] = swapData[i].rate / 100;
             estimatedRate[i] = swap.fairRate();
-        Spread error = std::fabs(expectedRate[i] - estimatedRate[i]);
+/*        Spread error = std::fabs(expectedRate[i] - estimatedRate[i]);
         if (error > tolerance) {
             BOOST_ERROR(
                 swapData[i].n << " year(s) swap:\n"
@@ -746,17 +749,18 @@ LPOPER WINAPI swapDataTest(XLOPER12* depositData1,
                 << "\n error:          " << io::rate(error)
                 << "\n tolerance:      " << io::rate(tolerance));
         }
+*/
     }
-
-    count = 0;
-    OPER sub(vars.swaps, 3);
+    
+//    count = 0;
+    OPER sub(vars.swaps, 1);
     for (int j = 0; j < vars.swaps; j++) {
-        sub[count] = expectedRate[j];
-        count++;
-        sub[count] = estimatedRate[j];
-        count++;
-        sub[count] = std::fabs(expectedRate[j] - estimatedRate[j]) < tolerance ? true : false;
-        count++;
+ //       sub[count] = expectedRate[j];
+ //       count++;
+        sub[j] = estimatedRate[j];
+ //       count++;
+ //       sub[count] = std::fabs(expectedRate[j] - estimatedRate[j]) < tolerance ? true : false;
+ //       count++;
     }
 
     result = sub;
@@ -920,7 +924,7 @@ LPOPER WINAPI bondDataTest(XLOPER12* depositData1,
             interpolator));
     curveHandle.linkTo(vars.termStructure);
 
-    std::vector<Real> expectedPrice(vars.bonds);
+  //  std::vector<Real> expectedPrice(vars.bonds);
     std::vector<Real> estimatedPrice(vars.bonds);
 
     for (Size i = 0; i < vars.bonds; i++) {
@@ -941,9 +945,9 @@ LPOPER WINAPI bondDataTest(XLOPER12* depositData1,
             new DiscountingBondEngine(curveHandle));
         bond.setPricingEngine(bondEngine);
 
-        expectedPrice[i] = bondData[i].price;
+ //       expectedPrice[i] = bondData[i].price;
             estimatedPrice[i] = bond.cleanPrice();
-        Real error = std::fabs(expectedPrice[i] - estimatedPrice[i]);
+/*        Real error = std::fabs(expectedPrice[i] - estimatedPrice[i]);
         if (error > tolerance) {
             BOOST_ERROR(io::ordinal(i + 1) << " bond failure:" <<
                 std::setprecision(8) <<
@@ -951,17 +955,18 @@ LPOPER WINAPI bondDataTest(XLOPER12* depositData1,
                 "\n  expected price:  " << expectedPrice[i] <<
                 "\n  error:           " << error);
         }
+*/
     }
 
-    count = 0;
-    OPER sub(vars.bonds, 3);
+//    count = 0;
+    OPER sub(vars.bonds, 1);
     for (int j = 0; j < vars.bonds; j++) {
-        sub[count] = expectedPrice[j];
-        count++;
-        sub[count] = estimatedPrice[j];
-        count++;
-        sub[count] = std::fabs(expectedPrice[j] - estimatedPrice[j]) < tolerance ? true : false;
-        count++;
+ //       sub[count] = expectedPrice[j];
+ //       count++;
+        sub[j] = estimatedPrice[j];
+ //       count++;
+ //       sub[count] = std::fabs(expectedPrice[j] - estimatedPrice[j]) < tolerance ? true : false;
+ //       count++;
     }
 
     result = sub;
@@ -1129,7 +1134,7 @@ LPOPER WINAPI fraDataTest(XLOPER12* depositData1,
 #else
     bool useIndexedFra = true;
 #endif
-    std::vector<Rate> expectedRate(vars.fras);
+ //   std::vector<Rate> expectedRate(vars.fras);
     std::vector<Rate> estimatedRate(vars.fras);
     ext::shared_ptr<IborIndex> euribor3m(new Euribor3M(curveHandle));
     for (Size i = 0; i < vars.fras; i++) {
@@ -1148,25 +1153,26 @@ LPOPER WINAPI fraDataTest(XLOPER12* depositData1,
             fraData[i].rate / 100, 100.0,
             euribor3m, curveHandle,
             useIndexedFra);
-        expectedRate[i] = fraData[i].rate / 100;
+ //       expectedRate[i] = fraData[i].rate / 100;
         estimatedRate[i] = fra.forwardRate();
-        if (std::fabs(expectedRate[i] - estimatedRate[i]) > tolerance) {
+/*        if (std::fabs(expectedRate[i] - estimatedRate[i]) > tolerance) {
             BOOST_ERROR(io::ordinal(i + 1) << " FRA failure:" <<
                 std::setprecision(8) <<
                 "\n  estimated rate: " << io::rate(estimatedRate[i]) <<
                 "\n  expected rate:  " << io::rate(expectedRate[i]));
         }
+*/
     }
 
-    count = 0;
-    OPER sub(vars.fras, 3);
+ //   count = 0;
+    OPER sub(vars.fras, 1);
     for (int j = 0; j < vars.fras; j++) {
-        sub[count] = expectedRate[j];
-        count++;
-        sub[count] = estimatedRate[j];
-        count++;
-        sub[count] = std::fabs(expectedRate[j] - estimatedRate[j]) < tolerance ? true : false;
-        count++;
+//        sub[count] = expectedRate[j];
+//        count++;
+        sub[j] = estimatedRate[j];
+ //       count++;
+ //       sub[count] = std::fabs(expectedRate[j] - estimatedRate[j]) < tolerance ? true : false;
+ //       count++;
     }
 
     result = sub;
@@ -1331,7 +1337,7 @@ LPOPER WINAPI immFutsDataTest(XLOPER12* depositData1,
 
     ext::shared_ptr<IborIndex> euribor3m(new Euribor3M(curveHandle));
 
-    std::vector<Rate> expectedRate(vars.immFuts);
+//    std::vector<Rate> expectedRate(vars.immFuts);
     std::vector<Rate> estimatedRate(vars.immFuts);
     Date immStart = Date();
     for (Size i = 0; i < vars.immFuts; i++) {
@@ -1348,25 +1354,26 @@ LPOPER WINAPI immFutsDataTest(XLOPER12* depositData1,
         ForwardRateAgreement immFut(immStart, end, Position::Long,
             immFutData[i].rate / 100, 100.0,
             euribor3m, curveHandle);
-        expectedRate[i] = immFutData[i].rate / 100;
+//        expectedRate[i] = immFutData[i].rate / 100;
             estimatedRate[i] = immFut.forwardRate();
-        if (std::fabs(expectedRate[i] - estimatedRate[i]) > tolerance) {
+/*        if (std::fabs(expectedRate[i] - estimatedRate[i]) > tolerance) {
             BOOST_ERROR(io::ordinal(i + 1) << " IMM futures failure:" <<
                 std::setprecision(8) <<
                 "\n  estimated rate: " << io::rate(estimatedRate[i]) <<
                 "\n  expected rate:  " << io::rate(expectedRate[i]));
         }
+*/
     }
 
-    count = 0;
-    OPER sub(vars.immFuts, 3);
+//    count = 0;
+    OPER sub(vars.immFuts, 1);
     for (int j = 0; j < vars.immFuts; j++) {
-        sub[count] = expectedRate[j];
-        count++;
-        sub[count] = estimatedRate[j];
-        count++;
-        sub[count] = std::fabs(expectedRate[j] - estimatedRate[j]) < tolerance ? true : false;
-        count++;
+//        sub[count] = expectedRate[j];
+//        count++;
+        sub[j] = estimatedRate[j];
+//        count++;
+//        sub[count] = std::fabs(expectedRate[j] - estimatedRate[j]) < tolerance ? true : false;
+//        count++;
     }
 
     result = sub;
@@ -1532,7 +1539,7 @@ LPOPER WINAPI asxFutsDataTest(XLOPER12* depositData1,
 
     ext::shared_ptr<IborIndex> euribor3m(new Euribor3M(curveHandle));
 
-    std::vector<Rate> expectedRate(vars.immFuts);
+//    std::vector<Rate> expectedRate(vars.immFuts);
     std::vector<Rate> estimatedRate(vars.immFuts);
 
     Date asxStart = Date();
@@ -1552,24 +1559,25 @@ LPOPER WINAPI asxFutsDataTest(XLOPER12* depositData1,
         ForwardRateAgreement asxFut(asxStart, end, Position::Long,
             asxFutData[i].rate / 100, 100.0,
             euribor3m, curveHandle);
-        expectedRate[i] = asxFutData[i].rate / 100;
+//        expectedRate[i] = asxFutData[i].rate / 100;
             estimatedRate[i] = asxFut.forwardRate();
-        if (std::fabs(expectedRate[i] - estimatedRate[i]) > tolerance) {
+/*        if (std::fabs(expectedRate[i] - estimatedRate[i]) > tolerance) {
             BOOST_ERROR(io::ordinal(i + 1) << " ASX futures failure:" <<
                 std::setprecision(8) <<
                 "\n  estimated rate: " << io::rate(estimatedRate[i]) <<
                 "\n  expected rate:  " << io::rate(expectedRate[i]));
         }
+*/
     }
-    count = 0;
-    OPER sub(vars.asxFuts, 3);
+//    count = 0;
+    OPER sub(vars.asxFuts,1);
     for (int j = 0; j < vars.asxFuts; j++) {
-        sub[count] = expectedRate[j];
-        count++;
-        sub[count] = estimatedRate[j];
-        count++;
-        sub[count] = std::fabs(expectedRate[j] - estimatedRate[j]) < tolerance ? true : false;
-        count++;
+//        sub[count] = expectedRate[j];
+//        count++;
+        sub[j] = estimatedRate[j];
+//        count++;
+//        sub[count] = std::fabs(expectedRate[j] - estimatedRate[j]) < tolerance ? true : false;
+//        count++;
     }
 
     result = sub;
@@ -1772,7 +1780,7 @@ LPOPER WINAPI bmaTest(XLOPER12* depositData1,
     curveHandle.linkTo(vars.termStructure);
 
     // check BMA swaps
-    std::vector<Real> expectedFraction(vars.bmas);
+//    std::vector<Real> expectedFraction(vars.bmas);
     std::vector<Real> estimatedFraction(vars.bmas);
 
     ext::shared_ptr<BMAIndex> bma(new BMAIndex(curveHandle));
@@ -1805,9 +1813,9 @@ LPOPER WINAPI bmaTest(XLOPER12* depositData1,
         swap.setPricingEngine(ext::shared_ptr<PricingEngine>(
             new DiscountingSwapEngine(libor3m->forwardingTermStructure())));
 
-        expectedFraction[i] = bmaData[i].rate / 100;
+//        expectedFraction[i] = bmaData[i].rate / 100;
             estimatedFraction[i] = swap.fairLiborFraction();
-        Real error = std::fabs(expectedFraction[i] - estimatedFraction[i]);
+/*        Real error = std::fabs(expectedFraction[i] - estimatedFraction[i]);
         if (error > tolerance) {
             BOOST_ERROR(bmaData[i].n << " year(s) BMA swap:\n"
                 << std::setprecision(8)
@@ -1816,17 +1824,18 @@ LPOPER WINAPI bmaTest(XLOPER12* depositData1,
                 << "\n error:          " << error
                 << "\n tolerance:      " << tolerance);
         }
+*/
     }
 
-    count = 0;
-    OPER sub(vars.bmas, 3);
+//    count = 0;
+    OPER sub(vars.bmas, 1);
     for (int j = 0; j < vars.bmas; j++) {
-        sub[count] = expectedFraction[j];
-        count++;
-        sub[count] = estimatedFraction[j];
-        count++;
-        sub[count] = std::fabs(expectedFraction[j] - estimatedFraction[j]) < tolerance ? true : false;
-        count++;
+//        sub[count] = expectedFraction[j];
+//        count++;
+        sub[j] = estimatedFraction[j];
+//        count++;
+//        sub[count] = std::fabs(expectedFraction[j] - estimatedFraction[j]) < tolerance ? true : false;
+//        count++;
     }
 
     result = sub;
