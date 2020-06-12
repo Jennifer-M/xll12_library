@@ -1,24 +1,8 @@
-#include <test-suite/swap.hpp>
 #include <test-suite/utilities.hpp>
+#include <test-suite/swap.hpp>
+#include <ql/termstructures/yield/flatforward.hpp>
 #include <ql/handle.hpp>
 #include <ql/quantlib.hpp>
-#include <ql/instruments/vanillaswap.hpp>
-#include <ql/pricingengines/swap/discountingswapengine.hpp>
-#include <ql/termstructures/yield/flatforward.hpp>
-#include <ql/time/calendars/nullcalendar.hpp>
-#include <ql/time/daycounters/thirty360.hpp>
-#include <ql/time/daycounters/actual365fixed.hpp>
-#include <ql/time/daycounters/simpledaycounter.hpp>
-#include <ql/time/schedule.hpp>
-#include <ql/indexes/ibor/euribor.hpp>
-#include <ql/cashflows/iborcoupon.hpp>
-#include <ql/cashflows/cashflowvectors.hpp>
-#include <ql/termstructures/volatility/optionlet/constantoptionletvol.hpp>
-#include <ql/utilities/dataformatters.hpp>
-#include <ql/cashflows/cashflows.hpp>
-#include <ql/cashflows/couponpricer.hpp>
-#include <ql/currencies/europe.hpp>
-
 
 #include "../xll/xll.h"
 #include "../xll/shfb/entities.h"
@@ -29,24 +13,38 @@
 using namespace xll;
 using namespace QuantLib;
 
-// Information Excel needs to register add-in.
-AddIn swap_function(
-	// Function returning a pointer to an OPER with C++ name xll_function and Excel name XLL.FUNCTION.
-	// Don't forget prepend a question mark to the C++ name.
-	//                     |
-	//                     v
-	Function(XLL_LPOPER, L"?swapTest", L"XLL.swapTest")
-	// First argument is a double called x with an argument description and default value of 2
-	.Arg(XLL_LPOPER, L"variables", L"is the first integer argument.", L"2")
-	// Paste function category.
-	.Category(L"Example1")
-	// Insert Function description.
-	.FunctionHelp(L"Help on XLL.FUNCTION goes here.")
-	// Create entry for this function in Sandcastle Help File Builder project file.
-	.Alias(L"XLL.FUNCTION.ALIAS.swap") // alternate name
+AddIn xai_sample1(
+    Document(L"sample1") // top level documentation
+    .Documentation(LR"(
+This object will generate a Sandcastle Helpfile Builder project file.
+)"));
+
+AddIn xal_sample_category1(
+    Document(L"Example1")
+    .Documentation(LR"(
+This object will generate documentation for the Example category.
+)")
 );
 
-struct CommonVars {
+// Information Excel needs to register add-in.
+
+AddIn swap_function(
+    // Function returning a pointer to an OPER with C++ name xll_function and Excel name XLL.FUNCTION.
+    // Don't forget prepend a question mark to the C++ name.
+    //                     |
+    //                     v
+    Function(XLL_LPOPER, L"?swapTest", L"XLL.swapTest")
+    // First argument is a double called x with an argument description and default value of 2
+    .Arg(XLL_LPOPER, L"variables", L"is the first integer argument.", L"2")
+    // Paste function category.
+    .Category(L"Example1")
+    // Insert Function description.
+    .FunctionHelp(L"Help on XLL.FUNCTION goes here.")
+    // Create entry for this function in Sandcastle Help File Builder project file.
+    .Alias(L"XLL.FUNCTION.ALIAS.swap") // alternate name
+);
+
+struct CommonVars1 {
     // global data
     Date today, settlement;
     VanillaSwap::Type type;
@@ -85,7 +83,7 @@ struct CommonVars {
         return swap;
     }
 
-    CommonVars() {
+    CommonVars1() {
         type = VanillaSwap::Payer;
         settlementDays = 2;
         nominal = 100.0;
@@ -99,7 +97,15 @@ struct CommonVars {
         calendar = index->fixingCalendar();
         today = calendar.adjust(Settings::instance().evaluationDate());
         settlement = calendar.advance(today, settlementDays, Days);
-        termStructure.linkTo(flatRate(settlement, 0.05, Actual365Fixed()));
+
+        Date today = settlement;
+        ext::shared_ptr<Quote> forward = ext::shared_ptr<Quote>(new SimpleQuote(0.05));
+        DayCounter dc = Actual365Fixed();
+        ext::shared_ptr<YieldTermStructure> a = 
+        ext::shared_ptr<YieldTermStructure>(
+            new FlatForward(today, Handle<Quote>(forward), dc));
+
+        termStructure.linkTo(a);
     }
 };
 
@@ -108,7 +114,7 @@ LPOPER WINAPI swapTest(XLOPER12* variables) {
 #pragma XLLEXPORT
     static OPER result;
 
-    CommonVars vars;
+    CommonVars1 vars;
     Integer length = (int)variables->val.array.lparray[0].val.num;
     Rate fixedRate = variables->val.array.lparray[1].val.num;
     Rate floatingSpread = variables->val.array.lparray[2].val.num;
@@ -117,4 +123,3 @@ LPOPER WINAPI swapTest(XLOPER12* variables) {
     return &result;
 
 }
-

@@ -1841,3 +1841,4 @@ LPOPER WINAPI bmaTest(XLOPER12* depositData1,
     result = sub;
     return &result;
 }
+
