@@ -147,8 +147,7 @@ AddIn swap_function_multi(
     // Create entry for this function in Sandcastle Help File Builder project file.
     .Alias(L"XLL.FUNCTION.ALIAS.swap") // alternate name
 );
-template <class Traits, class Interpolator,
-    template <class> class Bootstrap = IterativeBootstrap>
+
 struct CurveVal{
 //flatfoward input
     Date referenceDate;
@@ -156,14 +155,14 @@ struct CurveVal{
     DayCounter dayCounter;
 
 //piecewiseyieldcurve input
-    Traits trait;
-    Interpolator interpolat;
-    Booststrap = booststrap;
+//    Traits trait;
+//    Interpolator interpolat;
+//    Booststrap = booststrap;
 
     //Date referenceDate;
-    ext::std::vector<ext::shared_ptr<typename Traits::helper> > helper;
+//    ext::std::vector<ext::shared_ptr<typename Traits::helper> > helper;
     //DayCounter& dayCounter;
-    Interpolator iInput;
+//    Interpolator iInput;
 
 //InterpolatedDiscountCurve
     std::vector<Date> dates;
@@ -241,6 +240,51 @@ std::vector<double>* termToPriceSingle(XLOPER12* variables, std::vector<ext::sha
         r->push_back(swap->NPV());
     }
     return r;
+}
+
+class curve {
+private:
+    ext::shared_ptr<YieldTermStructure> yts;
+
+public:
+    curve() {}
+    curve(ext::shared_ptr<YieldTermStructure> y):yts(y){}
+    ext::shared_ptr<YieldTermStructure> getYts() {
+        return yts;
+    }
+    void setYts(ext::shared_ptr<YieldTermStructure>& y) {
+        yts = y;
+    }
+};
+
+class flatforward : public curve {
+private:
+    Date settlement;
+    Rate rate;
+    DayCounter dc;
+public: 
+    flatforward(Date settlement, Rate rate, DayCounter dc):
+                settlement(settlement),rate(rate),dc(dc){
+
+        ext::shared_ptr<YieldTermStructure> sub =
+            ext::shared_ptr<YieldTermStructure>(new FlatForward(settlement,
+                Handle<Quote>(ext::shared_ptr<Quote>(new SimpleQuote(rate))),
+                dc));
+        setYts(sub);
+    };
+
+};
+
+void test() {
+   Calendar calendar = TARGET();
+   Date today = calendar.adjust(Date::todaysDate());
+
+    flatforward* a = new flatforward(today, 0.05, Actual365Fixed());
+    std::vector<curve*> sub;
+    sub.push_back(a);
+    handle<std::vector<curve*>> subhandle(&sub);
+    HANDLEX xhandle = subhandle.get();
+    ext::shared_ptr<YieldTermStructure> testYts = subhandle->at(0)->getYts;
 }
 LPOPER WINAPI swapTest(XLOPER12* variables,XLOPER12* curve_variables) {
 
