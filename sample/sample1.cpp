@@ -190,57 +190,124 @@ struct CurveVal{
 
 
 //FOr converting wstring to string for string input usage
-std::string wtoa(const std::wstring& Text) {
+std::string wtoa1(const std::wstring& Text) {
 
     std::string s(WideCharToMultiByte(CP_UTF8, 0, Text.c_str(), Text.size(), NULL, NULL, NULL, NULL), '\0');
     s.resize(WideCharToMultiByte(CP_UTF8, 0, Text.c_str(), Text.size(), &s[0], s.size(), NULL, NULL));
     return s;
 };
-//Input:XLOPER12* variables (length,fixedRate,floatingSpread from input)
-//        std::vector<ext::shared_ptr<YieldTermStructure>>* S (termstructures)
-//          int Ssize (size of the teremstructure or number of input set(they are the same))
+
+int convertTsType(std::string str) {
+    int strsize = str.length();
+    if (str.find("flatForward") < strsize) {
+        return 1;
+    }
+    return -1;
+}
+
+HANDLEX termstructureConvert(CommonVars1& vars, XLOPER12* curveVariable) {
+    int size = curveVariable->val.array.rows;
+    std::vector<ext::shared_ptr<YieldTermStructure>> ytsvec;
+    int count = 0;
+    for (int i = 0; i < size; i++) {
+        std::string str = wtoa1(curveVariable->val.array.lparray[count].val.str);
+        count++;
+        int tsType = convertTsType(str);
+        ext::shared_ptr<YieldTermStructure> a;
+        if (tsType == 1) {
+            Integer settlementDays = (int)curveVariable->val.array.lparray[count].val.num;
+            count++;
+            Rate forward = curveVariable->val.array.lparray[count].val.num;
+            count++;
+            ext::shared_ptr<IborIndex> index = ext::shared_ptr<IborIndex>(new
+                Euribor(Period(Semiannual), vars.termStructure));
+            Calendar calendar = index->fixingCalendar();
+            Date today = calendar.adjust(Settings::instance().evaluationDate());
+            Date settlement = calendar.advance(today, settlementDays, Days);
+            a = ext::shared_ptr<YieldTermStructure>(new FlatForward(settlement, 
+                                                            Handle<Quote>(ext::shared_ptr<Quote>(new SimpleQuote(forward))), 
+                                                            Actual365Fixed()));
+
+        }
+        ytsvec.push_back(a);
+    }
+    handle<std::vector<ext::shared_ptr<YieldTermStructure>>> hdlyts(&ytsvec);
+    HANDLEX xhdlyts = hdlyts.get();
+    return xhdlyts;
+
+}
+
+struct IstV {
+    Integer length;
+    Rate fixedRate;
+    Spread floatingSpread;
+};
+//input XLOPER12* input of instrument parameters
+//output HANDLEX handle of instruments parameters
+HANDLEX dataConvert(XLOPER12* variables) {
+    int size = (int)variables->val.array.rows;
+    int count = 0;
+    std::vector<IstV> ist;
+    for (int i = 0; i < size; i++) {
+        Integer length = (int)variables->val.array.lparray[count].val.num;
+        count++;
+        Rate fixedRate = variables->val.array.lparray[count].val.num;
+        count++;
+        Spread floatingSpread = variables->val.array.lparray[count].val.num;
+        count++;
+        IstV a = { length,fixedRate,floatingSpread };
+        ist.push_back(a);
+    }
+    handle<std::vector<IstV>> hdlist(&ist);
+    HANDLEX xhdlcv = hdlist.get();
+    return xhdlcv;
+}
+
+//Input:HANDLEX xhdlcv (length,fixedRate,floatingSpread from input)
+//       HANDLEX xhdlyts (termstructures)
 //Output:vector<double>* pointer to vector of double with price in it
 //Expectation: we expect to give multiple input of the termstrcuture and makeswap and calculate the price of the swap
-std::vector<double>* termToPriceMulit(XLOPER12* variables, std::vector<ext::shared_ptr<YieldTermStructure>>* S,int Ssize) {
-    CommonVars1 vars;
-    std::vector<double>* r;
-    int count = 0;
+std::vector<double> termToPriceMulit(CommonVars1 & vars,HANDLEX xhdlist, HANDLEX xhdlyts) {
+    //CommonVars1 vars;
+    std::vector<double> r;
+    handle<std::vector<IstV>> ist(xhdlist);
+    handle<std::vector<ext::shared_ptr<YieldTermStructure>>> yts(xhdlyts);
+    int Ssize = ist->size();
     for (int i = 0; i < Ssize; i++) {
-        vars.linkTermStructure(S->at(i));
-        Integer length = (int)variables->val.array.lparray[count].val.num;
-        count++;
-        Rate fixedRate = variables->val.array.lparray[count].val.num;
-        count++;
-        Rate floatingSpread = variables->val.array.lparray[count].val.num;
-        count++;
+        vars.linkTermStructure(yts->at(i));
+        Integer length = ist->at(i).length;
+        Rate fixedRate = ist->at(i).fixedRate;
+        Spread floatingSpread = ist->at(i).floatingSpread;
         ext::shared_ptr<VanillaSwap> swap = vars.makeSwap(length, fixedRate, floatingSpread);
-        r->push_back(swap->NPV());
+        r.push_back(swap->NPV());
     }
     return r;
 }
-//Input:XLOPER12* variables (length,fixedRate,floatingSpread from input)
-//        std::vector<ext::shared_ptr<YieldTermStructure>>* S (termstructures)
-//          int Ssize ( size of number of input set)
+//Input:HANDLEX xhdlcv (length,fixedRate,floatingSpread from input)
+//       HANDLEX xhdlyts (termstructures)
 //Output:vector<double>* pointer to vector of double with price in it
 //Expectation: we expect to give a single input of the termstrcuture and multiple input of makeswap and calculate the price of the swap
-std::vector<double>* termToPriceSingle(XLOPER12* variables, std::vector<ext::shared_ptr<YieldTermStructure>>* S, int Ssize) {
+std::vector<double> termToPriceSingle(HANDLEX xhdlist, HANDLEX xhdlyts) {
 
     CommonVars1 vars;
-    vars.linkTermStructure(S->at(0));
-    std::vector<double>* r;
-    int count = 0;
+    std::vector<double> r;
+
+    handle<std::vector<IstV>> ist(xhdlist);
+    handle<std::vector<ext::shared_ptr<YieldTermStructure>>> yts(xhdlyts);
+
+    vars.linkTermStructure(yts->at(0));
+    int Ssize = ist->size();
     for (int i = 0; i < Ssize; i++) {
-        Integer length = (int)variables->val.array.lparray[count].val.num;
-        count++;
-        Rate fixedRate = variables->val.array.lparray[count].val.num;
-        count++;
-        Rate floatingSpread = variables->val.array.lparray[count].val.num;
-        count++;
+        Integer length = ist->at(i).length;
+        Rate fixedRate = ist->at(i).fixedRate;
+        Spread floatingSpread = ist->at(i).floatingSpread;
         ext::shared_ptr<VanillaSwap> swap = vars.makeSwap(length, fixedRate, floatingSpread);
-        r->push_back(swap->NPV());
+        r.push_back(swap->NPV());
     }
     return r;
 }
+
+
 
 class curve {
 private:
@@ -284,21 +351,41 @@ void test() {
     sub.push_back(a);
     handle<std::vector<curve*>> subhandle(&sub);
     HANDLEX xhandle = subhandle.get();
-    ext::shared_ptr<YieldTermStructure> testYts = subhandle->at(0)->getYts;
+    ext::shared_ptr<YieldTermStructure> testYts = subhandle->at(0)->getYts();
 }
-LPOPER WINAPI swapTest(XLOPER12* variables,XLOPER12* curve_variables) {
+LPOPER WINAPI swapTest_multi(XLOPER12* variables,XLOPER12* curve_variables) {
 
 #pragma XLLEXPORT
     static OPER result;
 
     int curve_size = (int)curve_variables->val.array.rows;
     int data_size = (int)variables->val.array.rows;
-    if (curve_size == 1) {//having one curve and fit all price
+
+    CommonVars1 vars;
+    std::vector<double> res;
+
+    HANDLEX yts = termstructureConvert(vars, curve_variables);
+    HANDLEX data = dataConvert(variables);
+
+    if (curve_size == 1) {
+        res = termToPriceSingle(data, yts);
+    }
+    else {
+        res = termToPriceMulit(vars, data, yts);
+    }
+
+    OPER sub(data_size, 1);
+    for (int j = 0; j < data_size; j++) {
+        sub[j] = res[j];
+    }
+    result = sub;
+
+/*    if (curve_size == 1) {//having one curve and fit all price
 
     }
     else {//having multiple curve to fit one price
         QL_REQUIRE(curve_size == data_size,"data size not equal to curve size");
-/*
+
         std::vector<CurveVal> curveInput;
         int count = 0;
         for (int i = 0; i < curve_size; i++) {
@@ -310,8 +397,8 @@ LPOPER WINAPI swapTest(XLOPER12* variables,XLOPER12* curve_variables) {
         count++;
         std::string str = wtoa(curve_variables->val.array.lparray[count].val.str)
         }
-*/
-        CurveVal var;
+
+      CurveVal var;
         bool flatforward=false, Piecewise=false, InterpolatedDiscount=false, FittedbondDiscount=false;
         if (flatforward) {
 
@@ -350,7 +437,7 @@ LPOPER WINAPI swapTest(XLOPER12* variables,XLOPER12* curve_variables) {
         }
        
     }
-
+*/
     return &result;
 
 }
