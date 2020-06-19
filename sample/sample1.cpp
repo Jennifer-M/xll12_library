@@ -342,13 +342,16 @@ public:
 
 };
 
-void test() {
+void test1() {
    Calendar calendar = TARGET();
    Date today = calendar.adjust(Date::todaysDate());
 
     flatforward* a = new flatforward(today, 0.05, Actual365Fixed());
     std::vector<curve*> sub;
     sub.push_back(a);
+
+    handle<curve> simplehandle(new flatforward(today, 0.05, Actual365Fixed()));
+
     handle<std::vector<curve*>> subhandle(&sub);
     HANDLEX xhandle = subhandle.get();
     ext::shared_ptr<YieldTermStructure> testYts = subhandle->at(0)->getYts();
@@ -358,14 +361,29 @@ LPOPER WINAPI swapTest_multi(XLOPER12* variables,XLOPER12* curve_variables) {
 #pragma XLLEXPORT
     static OPER result;
 
+    test1();
+
     int curve_size = (int)curve_variables->val.array.rows;
     int data_size = (int)variables->val.array.rows;
 
     CommonVars1 vars;
     std::vector<double> res;
 
-    HANDLEX yts = termstructureConvert(vars, curve_variables);
+        HANDLEX yts = termstructureConvert(vars, curve_variables);
+    if(yts){
+    }
+    else {
+        BOOST_ERROR("need yts");
+        return 0;
+    }
     HANDLEX data = dataConvert(variables);
+    if (data) {
+    }
+    else {
+        BOOST_ERROR("need data");
+        return 0;
+    }
+
 
     if (curve_size == 1) {
         res = termToPriceSingle(data, yts);
