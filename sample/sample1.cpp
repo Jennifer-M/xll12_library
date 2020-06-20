@@ -140,6 +140,7 @@ AddIn swap_function_multi(
     // First argument is a double called x with an argument description and default value of 2
     .Arg(XLL_LPOPER, L"variables", L"is the first integer argument.", L"2")
     .Arg(XLL_LPOPER, L"curve_variables", L"is the first integer argument.", L"2")
+    .Uncalced()//needs to be there for declaring handle
     // Paste function category.
     .Category(L"Example1")
     // Insert Function description.
@@ -350,10 +351,13 @@ void test1() {
     std::vector<curve*> sub;
     sub.push_back(a);
 
-    handle<curve> simplehandle(new flatforward(today, 0.05, Actual365Fixed()));
-
+    std::pair<int, curve*> pa = std::make_pair(2, new flatforward(today, 0.05, Actual365Fixed()));
+    handle <curve> simplehandle(a);
+    handlex sub1;
+    sub1 = simplehandle.get();
     handle<std::vector<curve*>> subhandle(&sub);
-    HANDLEX xhandle = subhandle.get();
+    handlex xhandle;
+    xhandle = subhandle.get();
     ext::shared_ptr<YieldTermStructure> testYts = subhandle->at(0)->getYts();
 }
 LPOPER WINAPI swapTest_multi(XLOPER12* variables,XLOPER12* curve_variables) {
@@ -370,19 +374,9 @@ LPOPER WINAPI swapTest_multi(XLOPER12* variables,XLOPER12* curve_variables) {
     std::vector<double> res;
 
         HANDLEX yts = termstructureConvert(vars, curve_variables);
-    if(yts){
-    }
-    else {
-        BOOST_ERROR("need yts");
-        return 0;
-    }
+
     HANDLEX data = dataConvert(variables);
-    if (data) {
-    }
-    else {
-        BOOST_ERROR("need data");
-        return 0;
-    }
+
 
 
     if (curve_size == 1) {
