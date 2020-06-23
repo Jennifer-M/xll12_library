@@ -206,63 +206,13 @@ int convertTsType(std::string str) {
     return -1;
 }
 
-HANDLEX termstructureConvert(CommonVars1& vars, XLOPER12* curveVariable) {
-    int size = curveVariable->val.array.rows;
-    std::vector<ext::shared_ptr<YieldTermStructure>> ytsvec;
-    int count = 0;
-    for (int i = 0; i < size; i++) {
-        std::string str = wtoa1(curveVariable->val.array.lparray[count].val.str);
-        count++;
-        int tsType = convertTsType(str);
-        ext::shared_ptr<YieldTermStructure> a;
-        if (tsType == 1) {
-            Integer settlementDays = (int)curveVariable->val.array.lparray[count].val.num;
-            count++;
-            Rate forward = curveVariable->val.array.lparray[count].val.num;
-            count++;
-            ext::shared_ptr<IborIndex> index = ext::shared_ptr<IborIndex>(new
-                Euribor(Period(Semiannual), vars.termStructure));
-            Calendar calendar = index->fixingCalendar();
-            Date today = calendar.adjust(Settings::instance().evaluationDate());
-            Date settlement = calendar.advance(today, settlementDays, Days);
-            a = ext::shared_ptr<YieldTermStructure>(new FlatForward(settlement, 
-                                                            Handle<Quote>(ext::shared_ptr<Quote>(new SimpleQuote(forward))), 
-                                                            Actual365Fixed()));
-
-        }
-        ytsvec.push_back(a);
-    }
-    handle<std::vector<ext::shared_ptr<YieldTermStructure>>> hdlyts(&ytsvec);
-    HANDLEX xhdlyts = hdlyts.get();
-    return xhdlyts;
-
-}
 
 struct IstV {
     Integer length;
     Rate fixedRate;
     Spread floatingSpread;
 };
-//input XLOPER12* input of instrument parameters
-//output HANDLEX handle of instruments parameters
-HANDLEX dataConvert(XLOPER12* variables) {
-    int size = (int)variables->val.array.rows;
-    int count = 0;
-    std::vector<IstV> ist;
-    for (int i = 0; i < size; i++) {
-        Integer length = (int)variables->val.array.lparray[count].val.num;
-        count++;
-        Rate fixedRate = variables->val.array.lparray[count].val.num;
-        count++;
-        Spread floatingSpread = variables->val.array.lparray[count].val.num;
-        count++;
-        IstV a = { length,fixedRate,floatingSpread };
-        ist.push_back(a);
-    }
-    handle<std::vector<IstV>> hdlist(&ist);
-    HANDLEX xhdlcv = hdlist.get();
-    return xhdlcv;
-}
+
 
 //Input:HANDLEX xhdlcv (length,fixedRate,floatingSpread from input)
 //       HANDLEX xhdlyts (termstructures)
@@ -271,8 +221,10 @@ HANDLEX dataConvert(XLOPER12* variables) {
 std::vector<double> termToPriceMulit(CommonVars1 & vars,HANDLEX xhdlist, HANDLEX xhdlyts) {
     //CommonVars1 vars;
     std::vector<double> r;
-    handle<std::vector<IstV>> ist(xhdlist);
-    handle<std::vector<ext::shared_ptr<YieldTermStructure>>> yts(xhdlyts);
+    std::vector<IstV>* ist = dynamic_cast<std::vector<IstV>*>(handle<std::vector<IstV>>(xhdlyts).ptr());
+    std::vector<ext::shared_ptr<YieldTermStructure>>* yts = dynamic_cast<std::vector<ext::shared_ptr<YieldTermStructure>>*>(
+                                                    handle<std::vector<ext::shared_ptr<YieldTermStructure>>>(xhdlyts).ptr());
+
     int Ssize = ist->size();
     for (int i = 0; i < Ssize; i++) {
         vars.linkTermStructure(yts->at(i));
@@ -293,8 +245,9 @@ std::vector<double> termToPriceSingle(HANDLEX xhdlist, HANDLEX xhdlyts) {
     CommonVars1 vars;
     std::vector<double> r;
 
-    handle<std::vector<IstV>> ist(xhdlist);
-    handle<std::vector<ext::shared_ptr<YieldTermStructure>>> yts(xhdlyts);
+    std::vector<IstV>* ist = dynamic_cast<std::vector<IstV>*>(handle<std::vector<IstV>>(xhdlyts).ptr());
+    std::vector<ext::shared_ptr<YieldTermStructure>>* yts = dynamic_cast<std::vector<ext::shared_ptr<YieldTermStructure>>*>(
+                                                    handle<std::vector<ext::shared_ptr<YieldTermStructure>>>(xhdlyts).ptr());
 
     vars.linkTermStructure(yts->at(0));
     int Ssize = ist->size();
@@ -340,6 +293,9 @@ public:
                 dc));
         setYts(sub);
     };
+    Rate getRate() {
+        return rate;
+    }
 
 };
 
@@ -352,9 +308,14 @@ void test1() {
     sub.push_back(a);
 
     std::pair<int, curve*> pa = std::make_pair(2, new flatforward(today, 0.05, Actual365Fixed()));
-    handle <curve> simplehandle(a);
+    handle <flatforward> simplehandle(a);
     handlex sub1;
     sub1 = simplehandle.get();
+
+    flatforward* pd = dynamic_cast<flatforward*>(handle<flatforward>(sub1).ptr());
+
+    Rate pddata = pd->getRate();
+
     handle<std::vector<curve*>> subhandle(&sub);
     handlex xhandle;
     xhandle = subhandle.get();
@@ -364,8 +325,8 @@ LPOPER WINAPI swapTest_multi(XLOPER12* variables,XLOPER12* curve_variables) {
 
 #pragma XLLEXPORT
     static OPER result;
-
-    test1();
+//testing handle
+ //   test1();
 
     int curve_size = (int)curve_variables->val.array.rows;
     int data_size = (int)variables->val.array.rows;
@@ -373,17 +334,57 @@ LPOPER WINAPI swapTest_multi(XLOPER12* variables,XLOPER12* curve_variables) {
     CommonVars1 vars;
     std::vector<double> res;
 
-        HANDLEX yts = termstructureConvert(vars, curve_variables);
+    int size =curve_size;
+    std::vector<ext::shared_ptr<YieldTermStructure>> ytsvec;
+    int count = 0;
+    for (int i = 0; i < size; i++) {
+        std::string str = wtoa1(curve_variables->val.array.lparray[count].val.str);
+        count++;
+        int tsType = convertTsType(str);
+        ext::shared_ptr<YieldTermStructure> a;
+        if (tsType == 1) {
+            Integer settlementDays = (int)curve_variables->val.array.lparray[count].val.num;
+            count++;
+            Rate forward = curve_variables->val.array.lparray[count].val.num;
+            count++;
+            ext::shared_ptr<IborIndex> index = ext::shared_ptr<IborIndex>(new
+                Euribor(Period(Semiannual), vars.termStructure));
+            Calendar calendar = index->fixingCalendar();
+            Date today = calendar.adjust(Settings::instance().evaluationDate());
+            Date settlement = calendar.advance(today, settlementDays, Days);
+            a = ext::shared_ptr<YieldTermStructure>(new FlatForward(settlement,
+                Handle<Quote>(ext::shared_ptr<Quote>(new SimpleQuote(forward))),
+                Actual365Fixed()));
 
-    HANDLEX data = dataConvert(variables);
+        }
+        ytsvec.push_back(a);
+    }
+    handle<std::vector<ext::shared_ptr<YieldTermStructure>>> hdlyts(&ytsvec);
+    handlex xhdlyts;
+    xhdlyts = hdlyts.get();
 
-
+    size = data_size;
+    count = 0;
+    std::vector<IstV> ist;
+    for (int i = 0; i < size; i++) {
+        Integer length = (int)variables->val.array.lparray[count].val.num;
+        count++;
+        Rate fixedRate = variables->val.array.lparray[count].val.num;
+        count++;
+        Spread floatingSpread = variables->val.array.lparray[count].val.num;
+        count++;
+        IstV a = { length,fixedRate,floatingSpread };
+        ist.push_back(a);
+    }
+    handle<std::vector<IstV>> hdlist(&ist);
+    handlex xhdlist;
+    xhdlist = hdlist.get();
 
     if (curve_size == 1) {
-        res = termToPriceSingle(data, yts);
+        res = termToPriceSingle(xhdlist, xhdlyts);
     }
     else {
-        res = termToPriceMulit(vars, data, yts);
+        res = termToPriceMulit(vars, xhdlist, xhdlyts);
     }
 
     OPER sub(data_size, 1);
@@ -391,65 +392,6 @@ LPOPER WINAPI swapTest_multi(XLOPER12* variables,XLOPER12* curve_variables) {
         sub[j] = res[j];
     }
     result = sub;
-
-/*    if (curve_size == 1) {//having one curve and fit all price
-
-    }
-    else {//having multiple curve to fit one price
-        QL_REQUIRE(curve_size == data_size,"data size not equal to curve size");
-
-        std::vector<CurveVal> curveInput;
-        int count = 0;
-        for (int i = 0; i < curve_size; i++) {
-        // the firsst column is naturals
-        Natural a = (int)curve_variables->val.array.lparray[count].val.num;
-        count++;
-        //the secound column is rate, second variable in
-        Rate b = curve_variables->val.array.lparray[count].val.num;
-        count++;
-        std::string str = wtoa(curve_variables->val.array.lparray[count].val.str)
-        }
-
-      CurveVal var;
-        bool flatforward=false, Piecewise=false, InterpolatedDiscount=false, FittedbondDiscount=false;
-        if (flatforward) {
-
-
-           ext::shared_ptr<YieldTermStructure> sub = ext::shared_ptr<YieldTermStructure>(new FlatForward(referenceDate, ext::shared_ptr<Quote>(new SimpleQuote(forward)), dayCounter));
-        }
-        else if (Piecewise) {
-            ext::shared_ptr<YieldTermStructure> sub = ext::shared_ptr<YieldTermStructure>(new
-                PiecewiseYieldCurve<CurveVal.trait, CurveVal.interpolat, CurveVal.boostrap>(CurveVal.referenceDay, CurveVal.helpers,
-                    Actual360(),
-                    CurveVal.iInput));
-        }
-        else if (InterpolatedDiscount) {
-            ext::shared_ptr<YieldTermStructure> sub = ext::shared_ptr<YieldTermStructure>(new
-                InterpolatedDiscountCurve<CurveVal.interpolat>(
-                    CurveVal.dates,
-                    CurveVal.dfs,
-                    CurveVal.dayCounter,
-                    CurveVal.calendar,
-                    CurveVal.iInput));
-        }
-        else if (FittedbondDiscount) {
-
-            ext::shared_ptr<YieldTermStructure> sub = ext::shared_ptr<YieldTermStructure>(new
-                FittedBondDiscountCurve(
-                    CurveVal.referenceDate,
-                    CurveVal.Bondhelpers,
-                    CurveVal.dayCounter,
-                    CurveVal.fittingMethod,
-                    CurveVal.accuracy,
-                    CurveVal.maxEvaluations,
-                    CurveVal.guess,
-                    CurveVal.simplexLambda,
-                    CurveVal.maxStationaryStateIterations));
-            
-        }
-       
-    }
-*/
     return &result;
 
 }
