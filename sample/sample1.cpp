@@ -57,6 +57,10 @@ struct CommonVars1 {
     Natural settlementDays;
     RelinkableHandle<YieldTermStructure> termStructure;
 
+    std::vector<ext::shared_ptr<SimpleQuote> > rates;
+    std::vector<ext::shared_ptr<RateHelper> > instruments;
+
+
     // cleanup
     SavedSettings backup;
 
@@ -110,6 +114,11 @@ struct CommonVars1 {
             new FlatForward(settlement, Handle<Quote>(forward), dc));
 
         termStructure.linkTo(a);
+
+        rates =
+            std::vector<ext::shared_ptr<SimpleQuote> >(2);
+        instruments =
+            std::vector<ext::shared_ptr<RateHelper> >(2);
     }
 
 
@@ -140,6 +149,8 @@ AddIn swap_function_multi(
     // First argument is a double called x with an argument description and default value of 2
     .Arg(XLL_LPOPER, L"variables", L"is the first integer argument.", L"2")
     .Arg(XLL_LPOPER, L"curve_variables", L"is the first integer argument.", L"2")
+    .Arg(XLL_LPOPER, L"depositData", L"is the first integer argument.", L"2")
+    .Arg(XLL_LPOPER, L"swapData", L"is the first integer argument.", L"2")
     .Uncalced()//needs to be there for declaring handle
     // Paste function category.
     .Category(L"Example1")
@@ -203,6 +214,9 @@ int convertTsType(std::string str) {
     if (str.find("flatForward") < strsize) {
         return 1;
     }
+    else if (str.find("piecewiseYieldCurve") < strsize) {
+        return 2;
+    }
     return -1;
 }
 
@@ -212,22 +226,136 @@ struct IstV {
     Rate fixedRate;
     Spread floatingSpread;
 };
+struct CurveV{
+    Integer settlement;
+    Rate forward;
+    ext::shared_ptr<YieldTermStructure> s;
+};
 
+struct Datum1 {
+    Integer n;
+    TimeUnit units;
+    Rate rate;
+};
+TimeUnit convertTime1(std::string x) {
+    int xsize = x.length();
+    if (x.find("Months") < xsize) {
+        return Months;
+    }
+    else if (x.find("Years") < xsize) {
+        return Years;
+    }
+    else if (x.find("Days") < xsize) {
+        return Days;
+    }
+    else if (x.find("Weeks") < xsize) {
+        return Weeks;
+    }
+    else if (x.find("Hours") < xsize) {
+        return Hours;
+    }
+    else if (x.find("Minutes") < xsize) {
+        return Minutes;
+    }
+    else if (x.find("Seconds") < xsize) {
+        return Seconds;
+    }
+    else if (x.find("Milliseconds") < xsize) {
+        return Milliseconds;
+    }
+    else if (x.find("Microseconds") < xsize) {
+        return Microseconds;
+    }
+    else {
+        std::cout << "error with TimeUnit input" << std::endl;
+        return Microseconds;
+    }
+
+};
+void makeInstrument(XLOPER12* depositData1, XLOPER12* swapData1, CommonVars1& vars) {
+    int deposits = (int)depositData1->val.array.rows;
+    int swaps = (int)swapData1->val.array.rows;
+    int count = 0;
+    std::vector<Datum1> depositData;
+    for (int i = 0; i < deposits; i++) {
+        Integer a = (int)depositData1->val.array.lparray[count].val.num;
+        count++;
+        std::string bb = wtoa1(depositData1->val.array.lparray[count].val.str);
+        TimeUnit b = convertTime1(bb);
+        count++;
+        Rate c = depositData1->val.array.lparray[count].val.num;
+        count++;
+        Datum1 sub = { a, b, c };
+        depositData.push_back(sub);
+    }
+    count = 0;
+    std::vector<Datum1> swapData;
+    for (int i = 0; i < swaps; i++) {
+        Integer a = (int)swapData1->val.array.lparray[count].val.num;
+        count++;
+        std::string bb = wtoa1(swapData1->val.array.lparray[count].val.str);
+        TimeUnit b = convertTime1(bb);
+        count++;
+        Rate c = swapData1->val.array.lparray[count].val.num;
+        count++;
+        Datum1 sub = { a, b, c };
+        swapData.push_back(sub);
+    }
+
+    vars.rates =
+        std::vector<ext::shared_ptr<SimpleQuote> >(deposits + swaps);
+    vars.instruments =
+        std::vector<ext::shared_ptr<RateHelper> >(deposits + swaps);
+    for (Size i = 0; i < deposits; i++) {
+        vars.rates[i] = ext::make_shared<SimpleQuote>(
+            depositData[i].rate / 100);
+    }
+    for (Size i = 0; i < swaps; i++) {
+        vars.rates[i + deposits] = ext::make_shared<SimpleQuote>(
+            swapData[i].rate / 100);
+    }
+
+    ext::shared_ptr<IborIndex> euribor6m(new Euribor6M);
+    for (Size i = 0; i < deposits; i++) {
+        Handle<Quote> r(vars.rates[i]);
+        vars.instruments[i] = ext::shared_ptr<RateHelper>(new
+            DepositRateHelper(r,
+                ext::make_shared<Euribor>(
+                    depositData[i].n * depositData[i].units)));
+    }
+    for (Size i = 0; i < swaps; i++) {
+        Handle<Quote> r(vars.rates[i + deposits]);
+        vars.instruments[i + deposits] = ext::shared_ptr<RateHelper>(new
+            SwapRateHelper(r, swapData[i].n * swapData[i].units,
+                vars.calendar,
+                Annual, Unadjusted,
+                Thirty360(), euribor6m));
+    }
+}
 
 //Input:HANDLEX xhdlcv (length,fixedRate,floatingSpread from input)
 //       HANDLEX xhdlyts (termstructures)
 //Output:vector<double>* pointer to vector of double with price in it
 //Expectation: we expect to give multiple input of the termstrcuture and makeswap and calculate the price of the swap
-std::vector<double> termToPriceMulit(CommonVars1 & vars,HANDLEX xhdlist, HANDLEX xhdlyts) {
-    //CommonVars1 vars;
+std::vector<double> termToPriceMulit(HANDLEX xhdlist, HANDLEX xhdlyts) {
+    CommonVars1 vars;
     std::vector<double> r;
     std::vector<IstV>* ist = dynamic_cast<std::vector<IstV>*>(handle<std::vector<IstV>>(xhdlyts).ptr());
-    std::vector<ext::shared_ptr<YieldTermStructure>>* yts = dynamic_cast<std::vector<ext::shared_ptr<YieldTermStructure>>*>(
-                                                    handle<std::vector<ext::shared_ptr<YieldTermStructure>>>(xhdlyts).ptr());
+    std::vector<CurveV>* yts = dynamic_cast<std::vector<CurveV>*>(
+                                                    handle<std::vector<CurveV>>(xhdlyts).ptr());
+
+    ensure(ist->size() ==yts->size());
 
     int Ssize = ist->size();
     for (int i = 0; i < Ssize; i++) {
-        vars.linkTermStructure(yts->at(i));
+        vars.settlementDays = yts->at(i).settlement;
+        vars.linkTermStructure(yts->at(i).s);
+        vars.index = ext::shared_ptr<IborIndex>(new
+            Euribor(Period(Semiannual), vars.termStructure));
+        vars.calendar = vars.index->fixingCalendar();
+        vars.today = vars.calendar.adjust(Settings::instance().evaluationDate());
+        vars.settlement = vars.calendar.advance(vars.today, vars.settlementDays, Days);
+
         Integer length = ist->at(i).length;
         Rate fixedRate = ist->at(i).fixedRate;
         Spread floatingSpread = ist->at(i).floatingSpread;
@@ -240,16 +368,21 @@ std::vector<double> termToPriceMulit(CommonVars1 & vars,HANDLEX xhdlist, HANDLEX
 //       HANDLEX xhdlyts (termstructures)
 //Output:vector<double>* pointer to vector of double with price in it
 //Expectation: we expect to give a single input of the termstrcuture and multiple input of makeswap and calculate the price of the swap
-std::vector<double> termToPriceSingle(HANDLEX xhdlist, HANDLEX xhdlyts) {
+std::vector<double> termToPriceSingle(CommonVars1 vars,HANDLEX xhdlist, HANDLEX xhdlyts) {
 
-    CommonVars1 vars;
     std::vector<double> r;
 
     std::vector<IstV>* ist = dynamic_cast<std::vector<IstV>*>(handle<std::vector<IstV>>(xhdlyts).ptr());
-    std::vector<ext::shared_ptr<YieldTermStructure>>* yts = dynamic_cast<std::vector<ext::shared_ptr<YieldTermStructure>>*>(
-                                                    handle<std::vector<ext::shared_ptr<YieldTermStructure>>>(xhdlyts).ptr());
+    std::vector<CurveV>* yts = dynamic_cast<std::vector<CurveV>*>(
+                                                    handle<std::vector<CurveV>>(xhdlyts).ptr());
+    vars.settlementDays = yts->at(0).settlement;
+    vars.linkTermStructure(yts->at(0).s);
+    vars.index = ext::shared_ptr<IborIndex>(new
+        Euribor(Period(Semiannual), vars.termStructure));
+    vars.calendar = vars.index->fixingCalendar();
+    vars.today = vars.calendar.adjust(Settings::instance().evaluationDate());
+    vars.settlement = vars.calendar.advance(vars.today, vars.settlementDays, Days);
 
-    vars.linkTermStructure(yts->at(0));
     int Ssize = ist->size();
     for (int i = 0; i < Ssize; i++) {
         Integer length = ist->at(i).length;
@@ -321,7 +454,7 @@ void test1() {
     xhandle = subhandle.get();
     ext::shared_ptr<YieldTermStructure> testYts = subhandle->at(0)->getYts();
 }
-LPOPER WINAPI swapTest_multi(XLOPER12* variables,XLOPER12* curve_variables) {
+LPOPER WINAPI swapTest_multi(XLOPER12* variables,XLOPER12* curve_variables, XLOPER12* depositData, XLOPER12* swapData) {
 
 #pragma XLLEXPORT
     static OPER result;
@@ -335,14 +468,15 @@ LPOPER WINAPI swapTest_multi(XLOPER12* variables,XLOPER12* curve_variables) {
     std::vector<double> res;
 
     int size =curve_size;
-    std::vector<ext::shared_ptr<YieldTermStructure>> ytsvec;
+    std::vector<CurveV> ytsvec;
     int count = 0;
     for (int i = 0; i < size; i++) {
         std::string str = wtoa1(curve_variables->val.array.lparray[count].val.str);
         count++;
         int tsType = convertTsType(str);
         ext::shared_ptr<YieldTermStructure> a;
-        if (tsType == 1) {
+        CurveV sub;
+        if (tsType == 1) {//input as Type, settlementDays, forward rate
             Integer settlementDays = (int)curve_variables->val.array.lparray[count].val.num;
             count++;
             Rate forward = curve_variables->val.array.lparray[count].val.num;
@@ -355,11 +489,44 @@ LPOPER WINAPI swapTest_multi(XLOPER12* variables,XLOPER12* curve_variables) {
             a = ext::shared_ptr<YieldTermStructure>(new FlatForward(settlement,
                 Handle<Quote>(ext::shared_ptr<Quote>(new SimpleQuote(forward))),
                 Actual365Fixed()));
-
+            sub = { settlementDays, forward, a };
         }
-        ytsvec.push_back(a);
+        else if (tsType == 2) {//input as Type, settlementDays, interpolator
+            Integer settlementDays = (int)curve_variables->val.array.lparray[count].val.num;
+            count++;
+            std::string intplr = wtoa1(curve_variables->val.array.lparray[count].val.str);
+            count++;
+            makeInstrument(depositData, swapData,vars);
+            int intpsize = intplr.length();
+            ext::shared_ptr<YieldTermStructure> s;
+            if (intplr.find("Linear") < intpsize) {
+                s = ext::shared_ptr<YieldTermStructure>(new
+                    PiecewiseYieldCurve<ZeroYield, Linear, IterativeBootstrap>(vars.settlement, vars.instruments,
+                        Actual360(),
+                        Linear()));
+            }
+            else if (intplr.find("Cubic") < intpsize) {
+                s = ext::shared_ptr<YieldTermStructure>(new
+                    PiecewiseYieldCurve<ZeroYield, Cubic, IterativeBootstrap>(vars.settlement, vars.instruments,
+                        Actual360(),
+                        Cubic(CubicInterpolation::Spline, true,
+                            CubicInterpolation::SecondDerivative, 0.0,
+                            CubicInterpolation::SecondDerivative, 0.0)));
+            }
+            else if (intplr.find("BackwardFlat") < intpsize) {
+                s = ext::shared_ptr<YieldTermStructure>(new
+                    PiecewiseYieldCurve<ZeroYield, BackwardFlat, IterativeBootstrap>(vars.settlement, vars.instruments,
+                        Actual360(),
+                        BackwardFlat()));
+            }
+            else {
+                BOOST_ERROR("Wrong");
+            }
+            sub = { settlementDays, 0.0, s };
+        }
+        ytsvec.push_back(sub);
     }
-    handle<std::vector<ext::shared_ptr<YieldTermStructure>>> hdlyts(&ytsvec);
+    handle<std::vector<CurveV>> hdlyts(&ytsvec);
     handlex xhdlyts;
     xhdlyts = hdlyts.get();
 
@@ -381,10 +548,10 @@ LPOPER WINAPI swapTest_multi(XLOPER12* variables,XLOPER12* curve_variables) {
     xhdlist = hdlist.get();
 
     if (curve_size == 1) {
-        res = termToPriceSingle(xhdlist, xhdlyts);
+        res = termToPriceSingle(vars,xhdlist, xhdlyts);
     }
     else {
-        res = termToPriceMulit(vars, xhdlist, xhdlyts);
+        res = termToPriceMulit(xhdlist, xhdlyts);
     }
 
     OPER sub(data_size, 1);
